@@ -33,6 +33,11 @@
       <router-link to="/admin/perfiles" class="menu-item">
         <span class="icon">🔑</span> Perfiles
       </router-link>
+
+      <div class="menu-section">INTELIGENCIA</div>
+      <router-link to="/admin/reportes" class="menu-item">
+        <span class="icon">📈</span> Reportes Gerenciales
+      </router-link>
     </nav>
     <div class="logout-section">
       <a href="#" class="menu-item logout">

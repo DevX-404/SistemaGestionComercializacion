@@ -1,57 +1,63 @@
 const axios = require('axios');
 
-// Si tienes un token de apis.net.pe o similar, ponlo aquí:
-const API_TOKEN = 'TU_TOKEN_AQUI'; 
-const BASE_URL = 'https://api.apis.net.pe/v1'; // Ejemplo de API común en Perú
+const BASE_URL = 'https://api.decolecta.com';
+const TOKEN = process.env.DECOLECTA_TOKEN || 'sk_11976.whBb9qRvjhUkkBFTIMuuDP92qiaIOCr2';
+
+const apiClient = axios.create({
+    baseURL: BASE_URL,
+    headers: {
+        'Authorization': `Bearer ${TOKEN}`, 
+        'Content-Type': 'application/json'
+    }
+});
 
 const consultarDNI = async (numero) => {
     try {
-        console.log(`🔎 Buscando DNI ${numero} en RENIEC...`);
+        console.log(`🔎 Buscando DNI ${numero} en DECOLECTA (${BASE_URL})...`);
         
-        // --- MODO DEMO (Simulación para que siempre te funcione al presentar) ---
-        // Si quieres usar API real, comenta este bloque y descomenta el de abajo
-        if (numero === '12345678') return { nombre: 'JUAN PEREZ DEL BARRIO', direccion: 'Av. Siempre Viva 123' };
-        if (numero.length === 8) return { nombre: 'CIUDADANO EJEMPLO RENIEC', direccion: 'Jr. La Union 555, Lima' };
-        // -----------------------------------------------------------------------
+        // Endpoint exacto de la documentación
+        const response = await apiClient.get(`/v1/reniec/dni?numero=${numero}`);
+        const data = response.data;
 
-        /* MODO REAL (Descomentar si compras un token)
-        const response = await axios.get(`${BASE_URL}/dni?numero=${numero}`, {
-            headers: { Authorization: `Bearer ${API_TOKEN}` }
-        });
+        // Validación: A veces la API devuelve éxito pero sin datos (data es null)
+        if (!data) return null;
+
+        const nombreCompleto = data.full_name || `${data.first_name} ${data.first_last_name} ${data.second_last_name}`;
+
         return {
-            nombre: response.data.nombre,
-            direccion: response.data.direccion || ''
+            nombre: nombreCompleto,
+            direccion: '' 
         };
-        */
-       
+
     } catch (error) {
-        console.error('Error API RENIEC:', error.message);
-        return null; // Si falla, devolvemos null para que el usuario escriba manual
+        // Imprimimos el error completo para verlo en consola
+        console.error('❌ Error API DNI Detalle:', error.code || error.message);
+        if (error.response) {
+            console.error('Status:', error.response.status);
+            console.error('Data:', error.response.data);
+        }
+        return null;
     }
 };
 
 const consultarRUC = async (numero) => {
     try {
-        console.log(`🔎 Buscando RUC ${numero} en SUNAT...`);
+        console.log(`🔎 Buscando RUC ${numero} en DECOLECTA (${BASE_URL})...`);
 
-        // --- MODO DEMO ---
-        if (numero === '20100000001') return { razon_social: 'EMPRESA MONSTRUOSA S.A.C.', direccion: 'Av. Javier Prado 2020', estado: 'ACTIVO' };
-        if (numero.length === 11) return { razon_social: 'COMERCIALIZADORA GENERICA E.I.R.L.', direccion: 'Zona Industrial Mz A', estado: 'ACTIVO' };
-        // -----------------
+        const response = await apiClient.get(`/v1/sunat/ruc?numero=${numero}`);
+        const data = response.data;
 
-        /* MODO REAL
-        const response = await axios.get(`${BASE_URL}/ruc?numero=${numero}`, {
-            headers: { Authorization: `Bearer ${API_TOKEN}` }
-        });
+        if (!data) return null;
+
         return {
-            razon_social: response.data.nombre,
-            direccion: response.data.direccion,
-            estado: response.data.estado
+            razon_social: data.razon_social,
+            direccion: data.direccion || 'Sin dirección registrada',
+            estado: data.estado,
+            condicion: data.condicion
         };
-        */
 
     } catch (error) {
-        console.error('Error API SUNAT:', error.message);
+        console.error('❌ Error API RUC Detalle:', error.message);
         return null;
     }
 };

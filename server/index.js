@@ -4,6 +4,10 @@ const { connectMySQL, connectPostgres, connectMongo } = require('./src/config/da
 const inventarioRoutes = require('./src/routes/inventario.routes');
 const ventasRoutes = require('./src/routes/ventas.routes');
 const clientesRoutes = require('./src/routes/clientes.routes');
+const authRoutes = require('./src/routes/auth.routes');
+const proveedoresRoutes = require('./src/routes/proveedores.routes');
+const usuariosRoutes = require('./src/routes/usuarios.routes');
+const reportesRoutes = require('./src/routes/reportes.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +18,10 @@ app.use(express.json());
 app.use('/api/inventario', inventarioRoutes);
 app.use('/api/ventas', ventasRoutes);
 app.use('/api/clientes', clientesRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/proveedores', proveedoresRoutes);
+app.use('/api/usuarios', usuariosRoutes);
+app.use('/api/reportes', reportesRoutes);
 app.use(express.static('public'));
 
 // Función para iniciar el sistema monstruoso
