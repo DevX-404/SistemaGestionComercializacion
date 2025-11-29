@@ -27,10 +27,11 @@ const login = async (req, res) => {
         res.json({
             token,
             usuario: {
+                _id: user._id,
                 username: user.username,
                 nombre: user.nombre_completo,
                 rol: user.rol,
-                avatar: user.perfil.avatar
+                perfil: user.perfil // <--- ¡ESTO ES LO QUE FALTABA! Aquí viajan los permisos
             }
         });
 

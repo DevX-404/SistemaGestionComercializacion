@@ -10,33 +10,43 @@
         <span class="icon">📊</span> Dashboard
       </router-link>
 
-      <div class="menu-section">COMERCIALIZACIÓN</div>
-      <router-link to="/admin/ventas" class="menu-item">
+      <div class="menu-section" v-if="authStore.hasPermission('ventas')">COMERCIAL</div>
+
+      <router-link to="/admin/ventas" class="menu-item" v-if="authStore.hasPermission('ventas')">
         <span class="icon">🛒</span> Punto de Venta
       </router-link>
-      <router-link to="/admin/clientes" class="menu-item">
+
+      <router-link to="/admin/clientes" class="menu-item" v-if="authStore.hasPermission('clientes')">
         <span class="icon">🤝</span> Clientes
       </router-link>
-      <router-link to="/admin/proveedores" class="menu-item">
+
+      <div class="menu-section" v-if="authStore.hasPermission('inventario')">LOGÍSTICA</div>
+
+      <router-link to="/admin/inventario" class="menu-item" v-if="authStore.hasPermission('inventario')">
+        <span class="icon">📦</span> Inventario
+      </router-link>
+
+      <router-link to="/admin/proveedores" class="menu-item" v-if="authStore.hasPermission('proveedores')">
         <span class="icon">🚚</span> Proveedores
       </router-link>
 
-      <div class="menu-section">LOGÍSTICA</div>
-      <router-link to="/admin/inventario" class="menu-item">
-        <span class="icon">📦</span> Inventario / Productos
+      <router-link to="/admin/kardex" class="menu-item" v-if="authStore.hasPermission('inventario')">
+        <span class="icon">📜</span> Kardex
       </router-link>
 
-      <div class="menu-section">SEGURIDAD</div>
-      <router-link to="/admin/usuarios" class="menu-item">
+      <div class="menu-section" v-if="authStore.hasPermission('usuarios')">SEGURIDAD</div>
+
+      <router-link to="/admin/usuarios" class="menu-item" v-if="authStore.hasPermission('usuarios')">
         <span class="icon">👤</span> Usuarios
       </router-link>
-      <router-link to="/admin/perfiles" class="menu-item">
+
+      <router-link to="/admin/perfiles" class="menu-item" v-if="authStore.hasPermission('usuarios')">
         <span class="icon">🔑</span> Perfiles
       </router-link>
 
-      <div class="menu-section">INTELIGENCIA</div>
-      <router-link to="/admin/reportes" class="menu-item">
-        <span class="icon">📈</span> Reportes Gerenciales
+      <div class="menu-section" v-if="authStore.hasPermission('reportes')">INTELIGENCIA</div>
+      <router-link to="/admin/reportes" class="menu-item" v-if="authStore.hasPermission('reportes')">
+        <span class="icon">📈</span> Reportes
       </router-link>
     </nav>
     <div class="logout-section">
@@ -46,7 +56,11 @@
     </div>
   </aside>
 </template>
-
+<script setup>
+import { useAuthStore } from '../../stores/auth';
+const authStore = useAuthStore();
+// ... resto del script
+</script>
 <style scoped>
 .admin-sidebar {
   width: 260px;
@@ -59,21 +73,25 @@
   padding: 20px;
   box-sizing: border-box;
 }
+
 .brand {
   display: flex;
   align-items: center;
   margin-bottom: 40px;
   color: #fff;
 }
+
 .brand-icon {
   font-size: 1.5rem;
   margin-right: 10px;
   color: var(--brand-primary);
 }
+
 .brand h3 {
   margin: 0;
   font-weight: 600;
 }
+
 .menu-section {
   font-size: 0.75rem;
   font-weight: 600;
@@ -82,6 +100,7 @@
   margin-bottom: 15px;
   margin-top: 25px;
 }
+
 .menu-item {
   display: flex;
   align-items: center;
@@ -93,15 +112,18 @@
   margin-bottom: 5px;
   font-weight: 500;
 }
+
 .menu-item:hover,
 .router-link-active {
   background-color: rgba(255, 255, 255, 0.1);
   color: #fff;
 }
+
 .icon {
   margin-right: 12px;
   font-size: 1.1rem;
 }
+
 .badge {
   background: var(--brand-primary);
   color: #000;
@@ -111,9 +133,11 @@
   margin-left: auto;
   font-weight: bold;
 }
+
 .logout-section {
   margin-top: auto;
 }
+
 .logout:hover {
   background-color: var(--danger);
   color: #fff;

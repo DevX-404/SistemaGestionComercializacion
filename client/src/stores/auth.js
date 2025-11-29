@@ -14,7 +14,7 @@ export const useAuthStore = defineStore('auth', {
         async login(username, password) {
             try {
                 const { data } = await api.post('/auth/login', { username, password });
-                
+
                 this.token = data.token;
                 this.user = data.usuario;
 
@@ -24,7 +24,7 @@ export const useAuthStore = defineStore('auth', {
 
                 // Configurar axios para usar el token en futuras peticiones
                 // (Esto requiere un pequeño ajuste en axios.js, luego lo hacemos)
-                
+
                 return true;
             } catch (error) {
                 console.error(error);
@@ -37,6 +37,14 @@ export const useAuthStore = defineStore('auth', {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             router.push('/login');
+        },
+        // Agrega esto dentro de "actions" en tu auth.js
+        hasPermission(permisoRequerido) {
+            if (!this.user) return false;
+            if (this.user.rol === 'ADMIN') return true; // Admin ve todo
+
+            // Si el usuario tiene una lista de permisos en su perfil
+            return this.user.perfil?.permisos?.includes(permisoRequerido) || false;
         }
     }
 });

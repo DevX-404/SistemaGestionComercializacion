@@ -56,4 +56,36 @@ const eliminarUsuario = async (req, res) => {
     }
 };
 
-module.exports = { getUsuarios, crearUsuario, eliminarUsuario };
+// 4. Editar Usuario (Roles y Permisos)
+const editarUsuario = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nombre_completo, email, rol, permisos, password } = req.body;
+
+        // Preparamos el objeto a actualizar
+        const updateData = {
+            nombre_completo,
+            email,
+            rol,
+            "perfil.permisos": permisos // Actualizamos los permisos específicos
+        };
+
+        // Si mandaron contraseña nueva, la encriptamos. Si no, la dejamos igual.
+        if (password) {
+            const salt = await bcrypt.genSalt(10);
+            updateData.password = await bcrypt.hash(password, salt);
+        }
+
+        const usuarioActualizado = await Usuario.findByIdAndUpdate(id, { $set: updateData }, { new: true });
+        
+        if (!usuarioActualizado) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+        res.json({ message: 'Usuario actualizado', usuario: usuarioActualizado });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// NO OLVIDES AGREGARLO AL EXPORT AL FINAL DEL ARCHIVO:
+module.exports = { getUsuarios, crearUsuario, eliminarUsuario, editarUsuario };

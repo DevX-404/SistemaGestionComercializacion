@@ -1,11 +1,10 @@
 import { defineStore } from 'pinia';
-import api from '../api/axios'; // Importamos axios configurado
+// Ya no necesitamos importar 'api' aquí porque la venta se hace en la Vista
 
 export const useCartStore = defineStore('cart', {
     state: () => ({
         items: [],
-        cliente_id: 1, // ID temporal (luego lo haremos dinámico con el buscador de clientes)
-        usuario_id: 'admin_id_mongo', // Simulación del usuario logueado
+        cliente: null,
         tipoVenta: 'CONTADO'
     }),
     getters: {
@@ -27,32 +26,11 @@ export const useCartStore = defineStore('cart', {
         quitarProducto(sku) {
             this.items = this.items.filter(i => i.sku !== sku);
         },
-        
-        // --- LA NUEVA FUNCIÓN PARA VENDER ---
-        async procesarVenta() {
-            if (this.items.length === 0) return alert('El carrito está vacío');
 
-            try {
-                const payload = {
-                    cliente_id: this.cliente_id,
-                    usuario_id: this.usuario_id,
-                    items: this.items,
-                    tipo_pago: this.tipoVenta,
-                    total: this.totalVenta
-                };
-
-                const response = await api.post('/ventas/procesar', payload);
-                
-                alert(`✅ ¡Venta registrada! ID: ${response.data.venta_id}`);
-                
-                // Limpiar carrito y recargar página (o recargar inventario)
-                this.items = [];
-                window.location.reload(); 
-
-            } catch (error) {
-                console.error(error);
-                alert('❌ Error al procesar la venta');
-            }
+        // ✅ ESTA ES LA IMPORTANTE QUE NECESITABAS
+        vaciarCarrito() {
+            this.items = [];
+            this.cliente = null;
         }
     }
 });

@@ -11,7 +11,7 @@ const getReportes = async (req, res) => {
             FROM ventas_cabecera
             WHERE fecha_emision >= DATE_SUB(NOW(), INTERVAL 7 DAY)
             GROUP BY DATE_FORMAT(fecha_emision, '%d/%m')
-            ORDER BY fecha_emision ASC
+            ORDER BY MIN(fecha_emision) ASC 
         `);
 
         // --- REPORTE 2: Estado de Cartera de Créditos (MySQL) ---
