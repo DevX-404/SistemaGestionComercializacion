@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia';
-// Ya no necesitamos importar 'api' aquí porque la venta se hace en la Vista
 
 export const useCartStore = defineStore('cart', {
     state: () => ({
@@ -8,7 +7,7 @@ export const useCartStore = defineStore('cart', {
         tipoVenta: 'CONTADO'
     }),
     getters: {
-        totalVenta: (state) => state.items.reduce((acc, i) => acc + (i.precio_base * i.cantidad), 0),
+        totalVenta: (state) => state.items.reduce((acc, item) => acc + (item.precio_base * item.cantidad), 0),
         igv: (state) => state.totalVenta * 0.18,
         subtotal: (state) => state.totalVenta - (state.totalVenta * 0.18)
     },
@@ -16,18 +15,29 @@ export const useCartStore = defineStore('cart', {
         agregarProducto(producto) {
             const existente = this.items.find(i => i.sku === producto.sku);
             if (existente) {
-                 // Validacion simple de stock visual
-                if (existente.cantidad < producto.stock) existente.cantidad++;
-                else alert('Stock insuficiente');
+                if (existente.cantidad < producto.stock) {
+                    existente.cantidad++;
+                    return { success: true, message: 'Cantidad actualizada en carrito' };
+                } else {
+                    return { success: false, message: '¡No hay más stock disponible!' };
+                }
             } else {
                 this.items.push({ ...producto, cantidad: 1 });
+                return { success: true, message: 'Producto agregado al carrito' };
+            }
+        },
+        disminuirCantidad(sku) {
+            const item = this.items.find(i => i.sku === sku);
+            if (item) {
+                item.cantidad--;
+                if (item.cantidad <= 0) {
+                    this.quitarProducto(sku);
+                }
             }
         },
         quitarProducto(sku) {
             this.items = this.items.filter(i => i.sku !== sku);
         },
-
-        // ✅ ESTA ES LA IMPORTANTE QUE NECESITABAS
         vaciarCarrito() {
             this.items = [];
             this.cliente = null;

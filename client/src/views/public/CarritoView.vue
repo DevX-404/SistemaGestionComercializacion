@@ -4,13 +4,14 @@
     <Transition name="slide-down">
       <div v-if="notification.show" class="argon-alert" :class="notification.type">
         <div class="alert-icon">
-          <span v-if="notification.type === 'success'"><i class="fas fa-check-circle"></i> ✅</span>
-          <span v-if="notification.type === 'danger'"><i class="fas fa-exclamation-circle"></i> ⛔</span>
-          <span v-if="notification.type === 'warning'"><i class="fas fa-bell"></i> ⚠️</span>
+          <span v-if="notification.type === 'success'">✅</span>
+          <span v-if="notification.type === 'danger'">⛔</span>
+          <span v-if="notification.type === 'warning'">⚠️</span>
+          <span v-if="notification.type === 'info'">ℹ️</span>
         </div>
-        <div class="alert-text">
-          <strong>{{ getTitle(notification.type) }}</strong> 
-          <span class="message">{{ notification.message }}</span>
+        <div class="alert-content">
+            <h4 class="alert-heading">{{ getTitle(notification.type) }}</h4>
+            <p>{{ notification.message }}</p>
         </div>
         <button class="close-btn" @click="notification.show = false">×</button>
       </div>
@@ -37,18 +38,27 @@
                 </div>
                 <div class="step-body" v-if="step === 1">
                     <div class="form-group search-group">
-                        <select v-model="tipoDoc" class="form-control compact">
+                        <select v-model="tipoDoc" class="form-control compact argon-input">
                             <option value="DNI">DNI</option>
                             <option value="RUC">RUC</option>
                         </select>
-                        <input v-model="numDoc" type="text" class="form-control" placeholder="Nro Documento" maxlength="11">
+                        <input v-model="numDoc" type="text" class="form-control argon-input" 
+                               :class="{'is-invalid': errors.numDoc}"
+                               placeholder="Nro Documento" maxlength="11">
                         <button @click="buscarClienteApi" class="btn-dark" :disabled="buscando">
                             {{ buscando ? '...' : '🔍' }}
                         </button>
                     </div>
-                    <div v-if="clienteNombre" class="client-result">
-                        <p><strong>Cliente:</strong> {{ clienteNombre }}</p>
-                        <input v-model="clienteDireccion" type="text" class="form-control" placeholder="Dirección de envío">
+                    
+                    <div v-if="clienteNombre" class="client-result fade-in">
+                        <div class="form-group">
+                            <label class="argon-label">Cliente / Razón Social</label>
+                            <input v-model="clienteNombre" type="text" class="form-control argon-input" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="argon-label">Dirección de Envío</label>
+                            <input v-model="clienteDireccion" type="text" class="form-control argon-input" placeholder="Ingrese dirección exacta">
+                        </div>
                         <button class="btn-next" @click="step = 2">Continuar al Pago 👉</button>
                     </div>
                 </div>
@@ -85,11 +95,11 @@
                         </div>
 
                         <div class="card-form-inputs">
-                            <input v-model="cardForm.numero" type="text" placeholder="Número de Tarjeta" maxlength="19" class="form-control">
-                            <input v-model="cardForm.nombre" type="text" placeholder="Nombre en la tarjeta" class="form-control">
+                            <input v-model="cardForm.numero" type="text" placeholder="Número de Tarjeta" maxlength="19" class="form-control argon-input">
+                            <input v-model="cardForm.nombre" type="text" placeholder="Nombre en la tarjeta" class="form-control argon-input">
                             <div class="row">
-                                <input v-model="cardForm.exp" type="text" placeholder="MM/YY" class="form-control">
-                                <input v-model="cardForm.cvc" type="text" placeholder="CVV" class="form-control" 
+                                <input v-model="cardForm.exp" type="text" placeholder="MM/YY" class="form-control argon-input">
+                                <input v-model="cardForm.cvc" type="text" placeholder="CVV" class="form-control argon-input" 
                                     @focus="isFlipped = true" @blur="isFlipped = false" maxlength="3">
                             </div>
                         </div>
@@ -119,15 +129,26 @@
         </div>
 
         <div class="order-summary">
-            <h3>Resumen del Pedido</h3>
+            <h3>Tu Pedido</h3>
             <div class="summary-items">
                 <div v-for="item in cart.items" :key="item.sku" class="mini-item">
                     <img :src="`http://localhost:3000${item.imagenes[0]}`">
-                    <div>
+                    
+                    <div class="item-details">
                         <p class="mini-name">{{ item.nombre }}</p>
-                        <small>Cant: {{ item.cantidad }}</small>
+                        <p class="mini-sku">SKU: {{ item.sku }}</p>
+                        
+                        <div class="qty-controls">
+                            <button class="qty-btn" @click="restarItem(item)">-</button>
+                            <span class="qty-val">{{ item.cantidad }}</span>
+                            <button class="qty-btn" @click="sumarItem(item)">+</button>
+                        </div>
                     </div>
-                    <span class="mini-price">S/ {{ (item.precio_base * item.cantidad).toFixed(2) }}</span>
+                    
+                    <div class="item-right">
+                         <span class="mini-price">S/ {{ (item.precio_base * item.cantidad).toFixed(2) }}</span>
+                         <button class="btn-trash" @click="eliminarItem(item.sku)" title="Eliminar">🗑️</button>
+                    </div>
                 </div>
             </div>
             <div class="summary-total">
@@ -143,9 +164,11 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, reactive } from 'vue';
 import { useCartStore } from '../../stores/cart';
 import api from '../../api/axios';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const cart = useCartStore();
 const step = ref(1);
@@ -154,6 +177,7 @@ const step = ref(1);
 const buscando = ref(false);
 const procesando = ref(false);
 const notification = ref({ show: false, message: '', type: 'success' });
+const errors = reactive({ numDoc: false });
 
 // Datos Formulario
 const tipoDoc = ref('DNI');
@@ -165,42 +189,50 @@ const cuotas = ref(1);
 const cardForm = ref({ numero: '', nombre: '', exp: '', cvc: '' });
 const isFlipped = ref(false);
 
-// --- SISTEMA DE NOTIFICACIONES ARGON STYLE ---
+// --- SISTEMA DE NOTIFICACIONES (Argon Toast) ---
 const showToast = (msg, type = 'success') => {
-    // Mapeamos tipos de error a clases Argon
-    // success -> success (Verde)
-    // error -> danger (Rojo)
-    // warning -> warning (Naranja)
-    const argonType = type === 'error' ? 'danger' : type;
-    
-    notification.value = { show: true, message: msg, type: argonType };
-    
-    // Auto ocultar
-    setTimeout(() => {
-        notification.value.show = false;
-    }, 4000);
+    notification.value = { show: true, message: msg, type };
+    setTimeout(() => { notification.value.show = false; }, 4000);
+};
+const getTitle = (type) => {
+    if(type === 'success') return '¡Excelente!';
+    if(type === 'danger') return '¡Error!';
+    if(type === 'warning') return 'Advertencia';
+    return 'Información';
 };
 
-const getTitle = (type) => {
-    if (type === 'success') return '¡Éxito!';
-    if (type === 'danger') return 'Error';
-    return 'Atención';
+// --- CONTROL DE CARRITO (Wrapper para evitar alerts nativos) ---
+const sumarItem = (item) => {
+    const res = cart.agregarProducto(item);
+    if (!res.success) showToast(res.message, 'warning');
+};
+
+const restarItem = (item) => {
+    cart.disminuirCantidad(item.sku);
+};
+
+const eliminarItem = (sku) => {
+    cart.quitarProducto(sku);
+    showToast('Producto eliminado del carrito', 'info');
 };
 
 // --- LÓGICA DE NEGOCIO ---
-
 const buscarClienteApi = async () => {
-    if (!numDoc.value) return showToast('Ingrese un número de documento', 'warning');
+    if (!numDoc.value) {
+        errors.numDoc = true;
+        return showToast('Ingrese un número de documento', 'warning');
+    }
+    errors.numDoc = false;
     buscando.value = true;
     try {
         const { data } = await api.post('/clientes/consulta-api', { tipo: tipoDoc.value, numero: numDoc.value });
         if(data) {
             clienteNombre.value = data.nombre || data.razon_social;
             clienteDireccion.value = data.direccion || '';
-            showToast('Cliente encontrado correctamente', 'success');
+            showToast('Cliente encontrado', 'success');
         }
     } catch (error) {
-        showToast('No se encontraron datos en RENIEC/SUNAT', 'warning');
+        showToast('Documento no encontrado en RENIEC/SUNAT', 'warning');
     } finally { buscando.value = false; }
 };
 
@@ -209,170 +241,169 @@ const calcularCuota = () => {
     return ((cart.totalVenta * (1 + interes)) / cuotas.value).toFixed(2);
 };
 
+// --- GENERAR PDF ---
+const generarBoletaPDF = (idVenta) => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.setTextColor(40, 40, 40);
+    doc.text("MONSTER STORE S.A.C.", 105, 20, null, null, "center");
+    doc.setFontSize(10);
+    doc.text(`RUC: 20100000001 - Boleta Electrónica: ${idVenta}`, 105, 28, null, null, "center");
+    
+    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 15, 45);
+    doc.text(`Cliente: ${clienteNombre.value}`, 15, 52);
+    doc.text(`DOC: ${numDoc.value}`, 15, 59);
+
+    const body = cart.items.map(i => [i.cantidad, i.nombre, `S/ ${i.precio_base}`, `S/ ${(i.precio_base*i.cantidad).toFixed(2)}`]);
+    
+    autoTable(doc, {
+        startY: 70,
+        head: [['Cant', 'Descripción', 'P.Unit', 'Total']],
+        body: body,
+        theme: 'grid',
+        headStyles: { fillColor: [45, 206, 137] }
+    });
+
+    doc.setFontSize(12);
+    doc.setTextColor(255, 0, 0);
+    doc.text(`Total Pagado: S/ ${cart.totalVenta.toFixed(2)}`, 140, doc.lastAutoTable.finalY + 10);
+    doc.save(`Boleta_${idVenta}.pdf`);
+};
+
 const procesarCompra = async () => {
-    if (!clienteNombre.value) return showToast('Por favor, complete la identificación (Paso 1)', 'warning');
+    if (!clienteNombre.value) return showToast('Identifíquese primero (Paso 1)', 'warning');
     
     procesando.value = true;
-
     try {
         let clienteId = 1; 
-
-        // 1. Intentar Registrar Cliente
         try {
             await api.post('/clientes', {
                 tipo_documento: tipoDoc.value, numero_documento: numDoc.value,
                 razon_social: clienteNombre.value, direccion: clienteDireccion.value,
-                email: 'web@cliente.com', telefono: '999000000'
+                email: 'web@cliente.com', telefono: '999'
             });
             const res = await api.get('/clientes');
             const nuevo = res.data.find(c => c.numero_documento === numDoc.value);
             if (nuevo) clienteId = nuevo.id;
-        } catch (e) {
-            console.log("Cliente ya existe, buscando ID...");
-            const res = await api.get('/clientes');
-            const existente = res.data.find(c => c.numero_documento === numDoc.value);
-            if (existente) clienteId = existente.id;
-        }
+        } catch (e) { /* Ignorar si existe */ }
 
-        // 2. Preparar Venta
         const payload = {
-            cliente_id: clienteId, 
-            usuario_id: 'WEB_USER',
-            items: cart.items,
-            tipo_pago: metodoPago.value === 'CREDITO' ? 'CREDITO' : 'CONTADO',
-            total: cart.totalVenta
+            cliente_id: clienteId, usuario_id: 'WEB', items: cart.items,
+            tipo_pago: metodoPago.value === 'CREDITO' ? 'CREDITO' : 'CONTADO', total: cart.totalVenta
         };
         
-        // 3. Enviar al Backend
         const { data } = await api.post('/ventas/procesar', payload);
+        showToast(`¡Compra Exitosa! ID: ${data.venta_id}`, 'success');
+        generarBoletaPDF(data.venta_id || Date.now());
 
-        showToast(`¡Compra Exitosa! Pedido #${data.venta_id}`, 'success');
-        
         setTimeout(() => {
             cart.vaciarCarrito();
             window.location.href = '/';
-        }, 2500);
+        }, 3000);
 
     } catch (error) {
         console.error(error);
-        const mensaje = error.response?.data?.error || "Error de conexión con el servidor";
-        showToast(mensaje, 'danger');
-    } finally {
-        procesando.value = false;
-    }
+        showToast("Hubo un error procesando la venta", 'danger');
+    } finally { procesando.value = false; }
 };
 </script>
 
 <style scoped>
-.checkout-wrapper { background: #f4f7f6; min-height: 100vh; padding: 40px 20px; font-family: 'Open Sans', sans-serif; position: relative; }
-.container { max-width: 1100px; margin: 0 auto; }
-.page-title { text-align: center; margin-bottom: 40px; color: #32325d; font-weight: 700; }
+/* GENERAL */
+.checkout-wrapper { background: #f8f9fe; min-height: 100vh; padding: 40px 20px; font-family: 'Open Sans', sans-serif; }
+.container { max-width: 1150px; margin: 0 auto; }
+.page-title { text-align: center; margin-bottom: 40px; color: #32325d; font-weight: 700; letter-spacing: -0.5px; }
 
-/* --- 🔥 ARGON ALERTS CSS 🔥 --- */
+/* --- ARGON ALERTS (Banner Flotante) --- */
 .argon-alert {
-    position: fixed;
-    top: 20px;
-    right: 20px; /* O 'left: 50%; transform: translateX(-50%);' para centrar */
-    z-index: 10000;
-    min-width: 350px;
-    padding: 1rem 1.5rem;
-    border: 0;
-    border-radius: 0.375rem;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08);
-    font-weight: 500;
-    line-height: 1.5;
+    position: fixed; top: 20px; right: 20px; z-index: 10000;
+    min-width: 350px; padding: 1rem; border-radius: 0.375rem;
+    color: #fff; display: flex; align-items: flex-start;
+    box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
 }
+.argon-alert.success { background: linear-gradient(87deg, #2dce89 0, #2dcecc 100%); }
+.argon-alert.danger { background: linear-gradient(87deg, #f5365c 0, #f56036 100%); }
+.argon-alert.warning { background: linear-gradient(87deg, #fb6340 0, #fbb140 100%); }
+.argon-alert.info { background: linear-gradient(87deg, #11cdef 0, #1171ef 100%); }
 
-/* Colores Argon */
-.argon-alert.success {
-    background-color: #2dce89; /* Verde Vibrante */
-    background-image: linear-gradient(315deg, #2dce89 0%, #2dcecc 74%);
-}
-
-.argon-alert.danger {
-    background-color: #f5365c; /* Rojo Intenso */
-    background-image: linear-gradient(315deg, #f5365c 0%, #f56036 74%);
-}
-
-.argon-alert.warning {
-    background-color: #fb6340; /* Naranja */
-    background-image: linear-gradient(315deg, #fb6340 0%, #fbb140 74%);
-}
-
-.alert-icon {
-    font-size: 1.3rem;
-    margin-right: 1rem;
-    display: flex;
-    align-items: center;
-}
-
-.alert-text strong {
-    display: block;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.5px;
-    opacity: 0.8;
-    margin-bottom: 2px;
-}
-
-.close-btn {
-    margin-left: auto;
-    background: transparent;
-    border: 0;
-    color: #fff;
-    font-size: 1.5rem;
-    font-weight: 600;
-    opacity: 0.6;
-    cursor: pointer;
-    line-height: 1;
-    padding: 0;
-    margin-top: -2px;
-}
+.alert-icon { font-size: 1.5rem; margin-right: 1rem; }
+.alert-content h4 { margin: 0; font-size: 0.9rem; text-transform: uppercase; font-weight: 700; opacity: 0.9; }
+.alert-content p { margin: 2px 0 0; font-size: 0.9rem; }
+.close-btn { margin-left: auto; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; opacity: 0.7; }
 .close-btn:hover { opacity: 1; }
 
-/* Animación Slide Down */
+/* ANIMACIONES */
 .slide-down-enter-active, .slide-down-leave-active { transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
 .slide-down-enter-from, .slide-down-leave-to { transform: translateY(-50px) scale(0.9); opacity: 0; }
+.fade-in { animation: fadeIn 0.5s; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* --- ESTADO VACÍO --- */
-.empty-state { text-align: center; padding: 80px 20px; animation: fadeIn 0.5s; }
-.empty-icon { font-size: 5rem; margin-bottom: 20px; opacity: 0.5; }
-.btn-back { display: inline-block; margin-top: 20px; padding: 12px 30px; background: #172b4d; color: white; text-decoration: none; border-radius: 30px; font-weight: 600; transition: 0.3s; box-shadow: 0 4px 6px rgba(50,50,93,.11), 0 1px 3px rgba(0,0,0,.08); }
-.btn-back:hover { transform: translateY(-1px); box-shadow: 0 7px 14px rgba(50,50,93,.1), 0 3px 6px rgba(0,0,0,.08); }
+/* INPUTS ARGON */
+.argon-label { font-size: 0.85rem; font-weight: 600; color: #525f7f; margin-bottom: 0.5rem; display: block; }
+.argon-input {
+    border: 1px solid #cad1d7; border-radius: 0.375rem; background-color: #fff;
+    box-shadow: 0 1px 3px rgba(50, 50, 93, 0.15), 0 1px 0 rgba(0, 0, 0, 0.02);
+    transition: all 0.2s; padding: 0.625rem 0.75rem; width: 100%; box-sizing: border-box; color: #8898aa;
+}
+.argon-input:focus { border-color: #5e72e4; box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11); outline: none; color: #32325d; }
+.is-invalid { border-color: #f5365c; }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-/* --- RESTO DEL DISEÑO (Manteniendo estructura funcional) --- */
+/* LAYOUT */
 .grid-layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 30px; }
+.steps-container { display: flex; flex-direction: column; gap: 20px; }
 
-.step-card { background: white; border-radius: 0.375rem; box-shadow: 0 0 2rem 0 rgba(136, 152, 170, 0.15); margin-bottom: 20px; overflow: hidden; transition: 0.3s; opacity: 0.7; border: 1px solid rgba(0,0,0,.05); }
-.step-card.active { opacity: 1; transform: scale(1.005); border-color: #5e72e4; }
-.step-card.done { border-left: 5px solid #2dce89; }
+/* STEPS CARD */
+.step-card { background: white; border-radius: 0.375rem; box-shadow: 0 0 2rem 0 rgba(136, 152, 170, 0.15); overflow: hidden; transition: 0.3s; border: 1px solid rgba(0,0,0,.05); opacity: 0.7; }
+.step-card.active { opacity: 1; transform: scale(1.01); border-color: #5e72e4; }
+.step-header { display: flex; align-items: center; padding: 1.25rem; cursor: pointer; background: #fff; border-bottom: 1px solid #f0f0f0; }
+.step-num { width: 30px; height: 30px; background: #e9ecef; color: #8898aa; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; margin-right: 1rem; }
+.active .step-num { background: #5e72e4; color: white; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
+.step-body { padding: 1.5rem; }
 
-.step-header { display: flex; align-items: center; padding: 20px; cursor: pointer; background: #fff; }
-.step-num { width: 32px; height: 32px; background: #e9ecef; color: #8898aa; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; margin-right: 15px; transition: 0.3s; }
-.active .step-num { background: #5e72e4; color: white; box-shadow: 0 4px 6px rgba(50,50,93,.11), 0 1px 3px rgba(0,0,0,.08); }
-.step-header h3 { margin: 0; font-size: 1.1rem; color: #32325d; }
+/* RESUMEN PEDIDO */
+.order-summary { background: white; padding: 1.5rem; border-radius: 0.375rem; box-shadow: 0 0 2rem 0 rgba(136, 152, 170, 0.15); border: 1px solid rgba(0,0,0,.05); height: fit-content; }
+.summary-items { max-height: 400px; overflow-y: auto; }
+.mini-item { display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px dashed #e9ecef; }
+.mini-item img { width: 60px; height: 60px; object-fit: cover; border-radius: 0.375rem; margin-right: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.item-details { flex: 1; }
+.mini-name { font-weight: 600; color: #32325d; font-size: 0.9rem; margin: 0 0 5px; }
+.mini-sku { font-size: 0.75rem; color: #8898aa; margin: 0; }
 
-.step-body { padding: 25px; border-top: 1px solid #f0f0f0; }
-.form-control { display: block; width: 100%; padding: 0.625rem 0.75rem; font-size: 1rem; font-weight: 400; line-height: 1.5; color: #8898aa; background-color: #fff; border: 1px solid #cad1d7; border-radius: 0.375rem; transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55); box-sizing: border-box; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(50,50,93,.15), 0 1px 0 rgba(0,0,0,.02); }
-.form-control:focus { border-color: #5e72e4; outline: 0; box-shadow: 0 4px 6px rgba(50,50,93,.11), 0 1px 3px rgba(0,0,0,.08); }
+/* CONTROLES CANTIDAD */
+.qty-controls { display: flex; align-items: center; margin-top: 8px; }
+.qty-btn { width: 24px; height: 24px; border-radius: 50%; border: 1px solid #dee2e6; background: white; color: #525f7f; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; font-weight: bold; font-size: 0.9rem; }
+.qty-btn:hover { background: #5e72e4; color: white; border-color: #5e72e4; }
+.qty-val { margin: 0 10px; font-size: 0.9rem; font-weight: bold; color: #32325d; }
 
-.search-group { display: flex; gap: 10px; }
+.item-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.mini-price { font-weight: 700; color: #2dce89; font-size: 1rem; }
+.btn-trash { background: none; border: none; color: #f5365c; cursor: pointer; font-size: 1.1rem; opacity: 0.7; transition: 0.2s; }
+.btn-trash:hover { opacity: 1; transform: scale(1.1); }
+
+.summary-total .row { display: flex; justify-content: space-between; margin-bottom: 10px; color: #525f7f; }
+.summary-total .final { border-top: 1px solid #e9ecef; padding-top: 15px; margin-top: 15px; font-weight: 800; font-size: 1.25rem; color: #32325d; }
+
+/* COMPONENTES FORMULARIO */
+.search-group { display: flex; gap: 10px; margin-bottom: 15px; }
 .compact { width: 100px; }
-.btn-dark { background: #172b4d; color: white; border: none; padding: 0 20px; border-radius: 0.375rem; cursor: pointer; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
-.client-result { background: #f6f9fc; padding: 20px; border-radius: 0.375rem; margin-top: 10px; border: 1px solid #e9ecef; }
-.btn-next { background: #5e72e4; color: white; border: none; padding: 12px 20px; border-radius: 0.375rem; margin-top: 15px; cursor: pointer; font-weight: 600; width: 100%; box-shadow: 0 4px 6px rgba(50,50,93,.11); transition: 0.3s; }
-.btn-next:hover { transform: translateY(-1px); box-shadow: 0 7px 14px rgba(50,50,93,.1), 0 3px 6px rgba(0,0,0,.08); }
+.btn-dark { background: #172b4d; color: white; border: none; padding: 0 1.5rem; border-radius: 0.375rem; cursor: pointer; font-weight: 600; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
+.client-result { background: #f6f9fc; padding: 1rem; border-radius: 0.375rem; margin-top: 1rem; border: 1px solid #e9ecef; }
+.btn-next { width: 100%; background: #5e72e4; color: white; border: none; padding: 0.75rem; border-radius: 0.375rem; font-weight: 600; margin-top: 1rem; cursor: pointer; box-shadow: 0 4px 6px rgba(50,50,93,.11); transition: 0.3s; }
+.btn-next:hover { transform: translateY(-1px); box-shadow: 0 7px 14px rgba(50,50,93,.1); }
 
-.payment-tabs { display: flex; gap: 15px; margin-bottom: 25px; }
-.payment-tabs button { flex: 1; padding: 15px; border: 1px solid #dee2e6; background: white; border-radius: 0.375rem; cursor: pointer; font-weight: 600; color: #8898aa; transition: 0.3s; }
-.payment-tabs button.active { background: #5e72e4; color: white; border-color: #5e72e4; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
+.payment-tabs { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+.payment-tabs button { flex: 1; padding: 1rem; border: 1px solid #dee2e6; background: white; border-radius: 0.375rem; font-weight: 600; color: #8898aa; cursor: pointer; transition: 0.3s; }
+.payment-tabs button.active { background: #172b4d; color: white; border-color: #172b4d; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
 
-/* Tarjeta 3D */
+/* TARJETA & OTROS */
+.btn-pay-final { width: 100%; background: #2dce89; color: white; border: none; padding: 1rem; border-radius: 0.375rem; font-weight: 700; font-size: 1.1rem; margin-top: 1.5rem; cursor: pointer; box-shadow: 0 4px 6px rgba(50,50,93,.11); transition: 0.3s; }
+.btn-pay-final:hover { transform: translateY(-1px); background: #26af74; box-shadow: 0 7px 14px rgba(50,50,93,.1); }
+.credit-options { background: #fff9f2; padding: 1.5rem; border-radius: 0.375rem; border: 1px solid #ffe5d0; color: #8a5340; }
+.cuotas-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0; }
+.cuota-card { background: white; border: 1px solid #dee2e6; padding: 10px; text-align: center; border-radius: 0.375rem; cursor: pointer; transition: 0.2s; }
+.cuota-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(50,50,93,.11); }
+.cuota-card.selected { border-color: #fb6340; background: #fb6340; color: white; }
+
 .card-simulator { perspective: 1000px; margin-bottom: 20px; }
 .flip-container { width: 320px; height: 200px; margin: 0 auto 20px; }
 .flipper { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
@@ -383,31 +414,13 @@ const procesarCompra = async () => {
 .chip { width: 50px; height: 35px; background: linear-gradient(135deg, #d4af37, #f1d676); border-radius: 5px; }
 .logo-visa { width: 60px; position: absolute; top: 20px; right: 20px; }
 .card-number { font-size: 1.4rem; letter-spacing: 2px; font-family: monospace; text-shadow: 0 2px 2px rgba(0,0,0,0.5); }
-.card-holder, .card-expiry { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
-
 .strip { width: 100%; height: 40px; background: black; margin-top: 20px; }
 .cvv-box { background: white; color: black; width: 80%; margin: 10px auto; height: 30px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; font-family: monospace; border-radius: 4px; }
 .cvv-label { text-align: right; width: 80%; margin: 5px auto 0; font-size: 0.7rem; opacity: 0.7; }
 
-.credit-options { background: #fff9f2; padding: 20px; border-radius: 0.375rem; color: #8a5340; margin-bottom: 20px; border: 1px solid #ffe5d0; }
-.cuotas-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
-.cuota-card { border: 1px solid #dee2e6; padding: 10px; text-align: center; border-radius: 0.375rem; cursor: pointer; background: white; transition: 0.2s; }
-.cuota-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(50,50,93,.11); }
-.cuota-card.selected { border-color: #fb6340; background: #fb6340; color: white; }
+.empty-state { text-align: center; padding: 100px 20px; }
+.empty-icon { font-size: 4rem; margin-bottom: 20px; opacity: 0.3; }
+.btn-back { display: inline-block; margin-top: 20px; padding: 12px 30px; background: #172b4d; color: white; text-decoration: none; border-radius: 30px; font-weight: 600; transition: 0.3s; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
 
-.btn-pay-final { width: 100%; background: #2dce89; color: white; padding: 15px; font-size: 1.2rem; font-weight: bold; border: none; border-radius: 0.375rem; margin-top: 20px; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
-.btn-pay-final:hover { background: #26af74; transform: translateY(-2px); box-shadow: 0 7px 14px rgba(50,50,93,.1); }
-.btn-pay-final:disabled { background: #e9ecef; color: #8898aa; cursor: not-allowed; transform: none; box-shadow: none; }
-
-/* Resumen Lateral */
-.order-summary { background: white; padding: 30px; border-radius: 0.375rem; height: fit-content; box-shadow: 0 0 2rem 0 rgba(136, 152, 170, 0.15); border: 1px solid rgba(0,0,0,.05); }
-.order-summary h3 { color: #32325d; margin-bottom: 20px; }
-.mini-item { display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px dashed #e9ecef; padding-bottom: 10px; }
-.mini-item img { width: 50px; height: 50px; object-fit: cover; border-radius: 0.375rem; margin-right: 15px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-.mini-name { margin: 0; font-size: 0.9rem; font-weight: 600; color: #525f7f; }
-.mini-price { margin-left: auto; font-weight: bold; color: #32325d; }
-.summary-total .row { display: flex; justify-content: space-between; margin-bottom: 5px; color: #8898aa; font-size: 0.9rem; }
-.summary-total .final { font-size: 1.5rem; color: #32325d; font-weight: 800; margin-top: 20px; border-top: 2px solid #e9ecef; padding-top: 15px; }
-
-@media (max-width: 800px) { .grid-layout { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .grid-layout { grid-template-columns: 1fr; } }
 </style>
