@@ -1,44 +1,36 @@
-const { poolPg } = require('../config/databases');
+const proveedorService = require('../services/ProveedorService');
+const Joi = require('joi');
 
-// 1. Listar Proveedores
-const getProveedores = async (req, res) => {
+// Validación estricta para empresas peruanas
+const schemaProveedor = Joi.object({
+    ruc: Joi.string().length(11).pattern(/^[0-9]+$/).required().messages({
+        'string.length': 'El RUC debe tener exactamente 11 dígitos',
+        'string.pattern.base': 'El RUC solo debe contener números'
+    }),
+    razon_social: Joi.string().min(3).required(),
+    contacto_nombre: Joi.string().optional().allow(''),
+    telefono: Joi.string().min(6).optional().allow(''),
+    direccion: Joi.string().optional().allow('')
+});
+
+const listar = async (req, res) => {
     try {
-        const query = 'SELECT * FROM proveedores ORDER BY id DESC';
-        const { rows } = await poolPg.query(query);
-        res.json(rows);
+        const proveedores = await proveedorService.listarTodos();
+        res.json(proveedores);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ success: false, mensaje: error.message });
     }
 };
 
-// 2. Crear Proveedor
-const crearProveedor = async (req, res) => {
-    const { ruc, razon_social, contacto_nombre, telefono, direccion } = req.body;
-    
+const crear = async (req, res) => {
     try {
-        // Validación básica
-        if (!ruc || !razon_social) {
-            return res.status(400).json({ message: 'RUC y Razón Social son obligatorios' });
-        }
-
-        const query = `
-            INSERT INTO proveedores (ruc, razon_social, contacto_nombre, telefono, direccion)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING *
-        `;
-        
-        const values = [ruc, razon_social, contacto_nombre, telefono, direccion];
-        const { rows } = await poolPg.query(query, values);
-        
-        res.status(201).json({ message: 'Proveedor creado', proveedor: rows[0] });
-
+        const resultado = await proveedorService.crear(req.body);
+        res.status(201).json(resultado);
     } catch (error) {
-        // Error común: RUC duplicado (violación de unique constraint)
-        if (error.code === '23505') {
-            return res.status(400).json({ message: 'El RUC ya está registrado' });
-        }
-        res.status(500).json({ error: error.message });
+        // Si es error de negocio (ya existe), mandamos 400, si es base de datos 500
+        const codigo = error.message.includes('ya está registrado') ? 400 : 500;
+        res.status(codigo).json({ success: false, mensaje: error.message });
     }
 };
 
-module.exports = { getProveedores, crearProveedor };
+module.exports = { listar, crear, schemaProveedor };

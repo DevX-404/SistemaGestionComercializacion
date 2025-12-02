@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { upload, getProductos, crearProducto, eliminarProducto } = require('../controllers/productosController');
+const productosController = require('../controllers/productosController');
+const validarDatos = require('../middlewares/validarDatos'); // El guardia
 
-router.get('/', getProductos);
-// 'imagen' es el nombre del campo del formulario que traerá el archivo
-router.post('/', upload.single('imagen'), crearProducto);
-router.delete('/:sku', eliminarProducto);
+// Ruta para listar (GET)
+router.get('/', productosController.listar);
+
+// Ruta para crear (POST) - ¡Fíjate cómo inyectamos el validador en medio!
+router.post('/', validarDatos(productosController.schemaProducto), productosController.crear);
 
 module.exports = router;

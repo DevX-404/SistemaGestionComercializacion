@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { getClientes, consultarExterno, crearCliente } = require('../controllers/clientesController');
+const clientesController = require('../controllers/clientesController');
+const validarDatos = require('../middlewares/validarDatos');
 
-router.get('/', getClientes);           // Listar todos
-router.post('/consulta-api', consultarExterno); // Consultar a RENIEC/SUNAT
-router.post('/', crearCliente);         // Guardar en BD
+// Ruta GET: http://localhost:3000/api/clientes
+router.get('/', clientesController.listar);
+
+// Ruta POST: http://localhost:3000/api/clientes/consultar
+// Sirve para buscar o registrar automáticamente
+router.post('/consultar', validarDatos(clientesController.schemaBusqueda), clientesController.buscarPorDocumento);
 
 module.exports = router;
