@@ -85,4 +85,32 @@ const pagarCuota = async (req, res) => {
     }
 };
 
-module.exports = { listarCuentas, verCronograma, pagarCuota }; 
+// Obtener detalle de UNA cuenta específica (Cabecera)
+const obtenerDetalle = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const connection = await connectMySQL();
+        
+        const [rows] = await connection.execute(`
+            SELECT 
+                cc.id, cc.monto_total, cc.monto_pagado, cc.saldo_pendiente, 
+                cc.estado, cc.cuotas_totales,
+                c.razon_social AS cliente, c.numero_documento, c.direccion, c.telefono,
+                vc.fecha_emision, vc.id AS venta_id
+            FROM cuentas_por_cobrar cc
+            JOIN ventas_cabecera vc ON cc.venta_id = vc.id
+            JOIN clientes c ON vc.cliente_id = c.id
+            WHERE cc.id = ?
+        `, [id]);
+
+        await connection.end();
+        
+        if (rows.length === 0) return res.status(404).json({ message: 'Crédito no encontrado' });
+        res.json(rows[0]);
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+module.exports = { listarCuentas, verCronograma, pagarCuota, obtenerDetalle }; 

@@ -6,5 +6,6 @@ const cuentasController = require('../controllers/cuentasController');
 router.get('/', cuentasController.listarCuentas);
 router.get('/:id/cronograma', cuentasController.verCronograma);
 router.post('/pagar-cuota', cuentasController.pagarCuota);
+router.get('/:id', cuentasController.obtenerDetalle);
 
 module.exports = router;

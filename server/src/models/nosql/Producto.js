@@ -7,7 +7,7 @@ const ProductoSchema = new mongoose.Schema({
     precio_base: Number,
     imagenes: [String], // Array de URLs
     specs: Object, // JSON flexible
-    estado: { type: String, default: 'activo' }
+    estado: { type: String, default: 'ACTIVO', enum: ['ACTIVO', 'INACTIVO'] }
 }, {
     timestamps: true,
     collection: 'productos_catalogo' // Nombre exacto de tu colección en Mongo

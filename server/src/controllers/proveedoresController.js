@@ -30,8 +30,9 @@ const crear = async (req, res) => {
 
 const eliminar = async (req, res) => {
     try {
-        await proveedorService.eliminar(req.params.id);
-        res.json({ success: true });
+        // OJO: Usamos $1 porque es PostgreSQL
+        await poolPg.query("UPDATE proveedores SET estado = 'INACTIVO' WHERE id = $1", [req.params.id]);
+        res.json({ message: 'Proveedor pasado a inactivo' });
     } catch (e) { res.status(500).json({ error: e.message }); }
 };
 

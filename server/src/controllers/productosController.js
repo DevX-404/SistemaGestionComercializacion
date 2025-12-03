@@ -39,11 +39,17 @@ const listar = async (req, res) => {
 
 const eliminar = async (req, res) => {
     try {
-        await productoService.eliminar(req.params.sku);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+        const resultado = await productoService.eliminar(req.params.sku);
+        res.json(resultado);
+    } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
-module.exports = { crear, listar, eliminar };
+// Nuevo método para reactivar
+const reactivar = async (req, res) => {
+    try {
+        const resultado = await productoService.reactivar(req.params.sku);
+        res.json(resultado);
+    } catch (error) { res.status(500).json({ error: error.message }); }
+};
+
+module.exports = { crear, listar, eliminar, reactivar };

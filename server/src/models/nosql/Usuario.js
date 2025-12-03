@@ -16,7 +16,7 @@ const UsuarioSchema = new mongoose.Schema({
         tema: { type: String, default: 'dark' },
         permisos: [String] // Ej: ['ver_reportes', 'anular_ventas']
     },
-    estado: { type: Boolean, default: true }
+    estado: { type: String, default: 'ACTIVO', enum: ['ACTIVO', 'INACTIVO'] }
 }, {
     timestamps: true,
     collection: 'usuarios_sistema'

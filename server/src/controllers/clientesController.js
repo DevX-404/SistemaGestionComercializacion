@@ -36,4 +36,24 @@ const crear = async (req, res) => {
     }
 };
 
-module.exports = { buscarPorDocumento, listar, crear, schemaBusqueda };
+const actualizar = async (req, res) => {
+    try {
+        const resultado = await clienteService.actualizarCliente(req.params.id, req.body);
+        res.json(resultado);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const eliminar = async (req, res) => {
+    try {
+        const resultado = await clienteService.eliminarCliente(req.params.id);
+        res.json(resultado);
+    } catch (error) {
+        // Si es error de negocio (tiene ventas), mandamos 409 Conflict
+        const status = error.message.includes('CRÍTICO') ? 409 : 500;
+        res.status(status).json({ message: error.message });
+    }
+};
+
+module.exports = { buscarPorDocumento, listar, crear, schemaBusqueda, actualizar, eliminar };

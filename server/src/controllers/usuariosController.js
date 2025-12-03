@@ -64,11 +64,9 @@ const editar = async (req, res) => {
 // Eliminar
 const eliminar = async (req, res) => {
     try {
-        await Usuario.findByIdAndDelete(req.params.id);
-        res.json({ message: 'Usuario eliminado' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+        await Usuario.findByIdAndUpdate(req.params.id, { estado: 'INACTIVO' });
+        res.json({ message: 'Usuario inactivado' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
 module.exports = { listar, crear, editar, eliminar };

@@ -1,21 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const clientesController = require('../controllers/clientesController');
+const { verificarToken } = require('../middlewares/authMiddleware');
 
-// Middleware de validación (Opcional si usas Joi en el controller)
-const validarBusqueda = (req, res, next) => {
-    const { error } = clientesController.schemaBusqueda.validate(req.body);
-    if (error) return res.status(400).json({ success: false, mensaje: error.details[0].message });
-    next();
-};
+// Proteger rutas críticas
+router.use(verificarToken);
 
-// Ruta 1: Buscar datos (API Externa o BD)
-router.post('/consulta-api', validarBusqueda, clientesController.buscarPorDocumento);
-
-// Ruta 2: Listar clientes (Para la tabla)
+router.post('/consulta-api', clientesController.buscarPorDocumento);
 router.get('/', clientesController.listar);
-
-// Ruta 3: Guardar nuevo cliente
-router.post('/', clientesController.crear); // Asegúrate de agregar 'crear' en tu controller abajo
+router.post('/', clientesController.crear);
+router.put('/:id', clientesController.actualizar); 
+router.delete('/:id', clientesController.eliminar); 
 
 module.exports = router;
