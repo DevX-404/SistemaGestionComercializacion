@@ -1,18 +1,17 @@
 <template>
   <div class="page-container fade-in">
-    
     <div class="page-header-actions">
       <div class="title-wrapper">
-        <h3 class="page-title">Gestión de Clientes</h3>
-        <p class="page-subtitle">Administra tu cartera de clientes fieles</p>
+        <h3 class="page-title">Catálogo de Productos</h3>
+        <p class="page-subtitle">Gestiona tu inventario y precios</p>
       </div>
       <div class="actions-wrapper">
         <div class="search-input-group">
           <span class="icon">🔍</span>
-          <input v-model="busqueda" placeholder="Buscar cliente..." />
+          <input v-model="busqueda" placeholder="Buscar producto..." />
         </div>
         <button class="btn-primary btn-pulse" @click="abrirModal(null)">
-          <span>+</span> Nuevo Cliente
+          <span>+</span> Nuevo Producto
         </button>
       </div>
     </div>
@@ -21,170 +20,151 @@
       <table class="monster-table">
         <thead>
           <tr>
-            <th>Cliente / Razón Social</th>
-            <th>Documento</th>
-            <th>Contacto</th>
-            <th>Estado</th>
+            <th>Producto</th>
+            <th>Categoría</th>
+            <th>Precio Base</th>
+            <th>Stock Actual</th>
             <th class="text-right">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="c in clientesFiltrados" :key="c.id">
+          <tr v-for="p in productosFiltrados" :key="p.sku">
             <td>
               <div class="cell-wrapper">
-                <div class="avatar-circle">{{ c.razon_social.charAt(0) }}</div>
+                <img 
+                  :src="p.imagenes?.[0] ? `http://localhost:3000${p.imagenes[0]}` : '/placeholder.png'" 
+                  class="avatar-square"
+                >
                 <div class="cell-text">
-                  <span class="main-text">{{ c.razon_social }}</span>
-                  <span class="sub-text">{{ c.email || 'Sin email' }}</span>
+                  <span class="main-text">{{ p.nombre }}</span>
+                  <span class="sub-text">SKU: {{ p.sku }}</span>
                 </div>
               </div>
             </td>
+            <td><span class="badge-light">{{ p.specs?.categoria || 'General' }}</span></td>
+            <td class="fw-bold text-primary">S/ {{ p.precio_base.toFixed(2) }}</td>
             <td>
-              <span class="badge badge-light">{{ c.tipo_documento }} - {{ c.numero_documento }}</span>
-            </td>
-            <td class="text-muted">{{ c.telefono || '-' }}</td>
-            <td>
-              <span class="status-dot active"></span> Activo
+              <span class="status-dot" :class="p.stock > 5 ? 'success' : 'danger'"></span>
+              {{ p.stock }} u.
             </td>
             <td class="text-right">
-              <button class="btn-action edit" @click="abrirModal(c)">✏️</button>
-              <button class="btn-action delete">🗑️</button>
+              <button class="btn-action delete" @click="eliminar(p.sku)">🗑️</button>
             </td>
           </tr>
         </tbody>
       </table>
-      
-      <div v-if="clientes.length === 0" class="empty-state">
-        <div class="empty-icon">👥</div>
-        <p>No hay clientes registrados aún.</p>
-      </div>
     </div>
 
     <transition name="modal-fade">
-      <div v-if="mostrarModal" class="modal-backdrop" @click.self="mostrarModal = false">
-        <div class="modal-card slide-in-up">
+      <div v-if="modal" class="modal-backdrop" @click.self="modal = false">
+        <div class="modal-card slide-in-up" style="width: 600px;">
           <div class="modal-header">
-            <h4>{{ modoEdicion ? 'Editar Cliente' : 'Nuevo Cliente' }}</h4>
-            <button class="close-btn" @click="mostrarModal = false">×</button>
+            <h4>{{ form._id ? 'Editar Producto' : 'Nuevo Producto' }}</h4>
+            <button class="close-btn" @click="modal = false">×</button>
           </div>
-          
           <div class="modal-body">
-            <div class="sunat-box" v-if="!modoEdicion">
-               <div class="input-group-merged">
-                 <select v-model="form.tipo_documento">
-                   <option value="DNI">DNI</option>
-                   <option value="RUC">RUC</option>
-                 </select>
-                 <input v-model="form.numero_documento" placeholder="Número documento" />
-                 <button class="btn-sunat" @click="consultarApi" :disabled="cargandoApi">
-                   {{ cargandoApi ? '...' : 'Consultar API' }}
-                 </button>
-               </div>
-            </div>
-
             <div class="form-grid">
-              <div class="form-group full">
-                <label>Razón Social / Nombre</label>
-                <input v-model="form.razon_social" class="input-styled" :readonly="bloqueadoApi">
-              </div>
-              <div class="form-group full">
-                <label>Dirección</label>
-                <input v-model="form.direccion" class="input-styled" :readonly="bloqueadoApi">
+              <div class="form-group">
+                <label>SKU (Código Único)</label>
+                <input v-model="form.sku" class="input-styled" :disabled="form._id">
               </div>
               <div class="form-group">
-                <label>Teléfono</label>
-                <input v-model="form.telefono" class="input-styled">
+                <label>Categoría</label>
+                <select v-model="form.categoria" class="input-styled">
+                  <option v-for="c in categorias" :key="c._id" :value="c.nombre">{{ c.nombre }}</option>
+                </select>
+              </div>
+              <div class="form-group full">
+                <label>Nombre del Producto</label>
+                <input v-model="form.nombre" class="input-styled">
               </div>
               <div class="form-group">
-                <label>Email</label>
-                <input v-model="form.email" class="input-styled">
+                <label>Precio Venta (S/)</label>
+                <input type="number" v-model.number="form.precio" class="input-styled">
+              </div>
+              <div class="form-group">
+                <label>Stock Inicial</label>
+                <input type="number" v-model.number="form.stock_inicial" class="input-styled" :disabled="!!form._id">
+              </div>
+              <div class="form-group full">
+                <label>Descripción</label>
+                <textarea v-model="form.descripcion" class="input-styled" rows="2"></textarea>
+              </div>
+              <div class="form-group full">
+                 <label>Imagen Principal</label>
+                 <input type="file" @change="handleFileUpload" class="input-styled">
               </div>
             </div>
           </div>
-
           <div class="modal-footer">
-            <button class="btn-ghost" @click="mostrarModal = false">Cancelar</button>
-            <button class="btn-primary" @click="guardar">Guardar Cambios</button>
+            <button class="btn-ghost" @click="modal = false">Cancelar</button>
+            <button class="btn-primary" @click="guardar">Guardar Producto</button>
           </div>
         </div>
       </div>
     </transition>
-
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import api from '../../api/axios'; // Tu axios configurado
+import api from '../../api/axios';
+import { useInventarioStore } from '../../stores/inventario';
 
-// Estado
-const clientes = ref([]);
-const mostrarModal = ref(false);
-const modoEdicion = ref(false);
-const cargandoApi = ref(false);
-const bloqueadoApi = ref(false);
+const inventario = useInventarioStore();
+const categorias = ref([]);
+const modal = ref(false);
 const busqueda = ref('');
+const archivo = ref(null);
 
-// Formulario reactivo
-const form = ref({ 
-  id: null, tipo_documento: 'DNI', numero_documento: '', 
-  razon_social: '', direccion: '', telefono: '', email: '' 
-});
+const form = ref({ sku: '', nombre: '', precio: 0, stock_inicial: 0, categoria: '', descripcion: '' });
 
-// Funciones (Lógica existente, solo adaptada visualmente)
-const cargarClientes = async () => {
+const cargarDatos = async () => {
+  await inventario.fetchProductos();
   try {
-    const { data } = await api.get('/clientes');
-    clientes.value = data;
-  } catch (e) { console.error(e); }
+    const { data } = await api.get('/categorias');
+    categorias.value = data;
+  } catch (e) {}
 };
 
-const clientesFiltrados = computed(() => 
-  clientes.value.filter(c => c.razon_social.toLowerCase().includes(busqueda.value.toLowerCase()))
+const productosFiltrados = computed(() => 
+  inventario.productos.filter(p => p.nombre.toLowerCase().includes(busqueda.value.toLowerCase()))
 );
 
-const abrirModal = (cliente) => {
-  if (cliente) {
-    modoEdicion.value = true;
-    form.value = { ...cliente };
-    bloqueadoApi.value = false;
+const abrirModal = (prod) => {
+  if(prod) {
+    // Lógica editar (pendiente de implementar en backend full)
   } else {
-    modoEdicion.value = false;
-    form.value = { tipo_documento: 'DNI', numero_documento: '', razon_social: '' }; // Reset
-    bloqueadoApi.value = false;
+    form.value = { sku: '', nombre: '', precio: 0, stock_inicial: 0, categoria: '', descripcion: '' };
   }
-  mostrarModal.value = true;
+  modal.value = true;
 };
 
-const consultarApi = async () => {
-  cargandoApi.value = true;
-  try {
-    const { data } = await api.post('/clientes/consulta-api', { 
-      tipo: form.value.tipo_documento, 
-      numero: form.value.numero_documento 
-    });
-    if (data.success) {
-      form.value.razon_social = data.razon_social || data.nombre;
-      form.value.direccion = data.direccion || '';
-      bloqueadoApi.value = true;
-    }
-  } catch (e) { alert('No encontrado'); }
-  finally { cargandoApi.value = false; }
+const handleFileUpload = (event) => {
+  archivo.value = event.target.files[0];
 };
 
 const guardar = async () => {
+  const formData = new FormData();
+  Object.keys(form.value).forEach(key => formData.append(key, form.value[key]));
+  if(archivo.value) formData.append('imagen', archivo.value);
+
   try {
-    if(modoEdicion.value) {
-      // await api.put... (si tuvieras editar)
-    } else {
-      await api.post('/clientes', form.value);
-    }
-    mostrarModal.value = false;
-    cargarClientes();
+    await api.post('/productos', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+    alert('Producto guardado 📦');
+    modal.value = false;
+    cargarDatos();
   } catch (e) { alert('Error al guardar'); }
 };
 
-onMounted(() => cargarClientes());
+const eliminar = async (sku) => {
+  if(confirm('¿Eliminar producto?')) {
+    await api.delete(`/productos/${sku}`);
+    cargarDatos();
+  }
+};
+
+onMounted(() => cargarDatos());
 </script>
 
 <style scoped>
@@ -206,6 +186,12 @@ onMounted(() => cargarClientes());
 .btn-pulse { animation: pulse-shadow 2s infinite; }
 @keyframes pulse-shadow { 0% { box-shadow: 0 0 0 0 rgba(94, 114, 228, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(94, 114, 228, 0); } 100% { box-shadow: 0 0 0 0 rgba(94, 114, 228, 0); } }
 
+/* Reutilizamos estilos del Main Layout, agregamos específicos */
+.avatar-square { width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #eee; margin-right: 15px; }
+.page-container { padding: 10px; }
+.text-primary { color: var(--primary); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.form-group.full { grid-column: span 2; }
 /* TABLA ESTILIZADA */
 .cell-wrapper { display: flex; align-items: center; gap: 15px; }
 .avatar-circle { width: 40px; height: 40px; background: linear-gradient(87deg, #11cdef 0, #1171ef 100%); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; box-shadow: 0 4px 6px rgba(50,50,93,.11); }

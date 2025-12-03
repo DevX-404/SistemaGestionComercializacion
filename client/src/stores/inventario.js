@@ -4,19 +4,17 @@ import api from '../api/axios';
 export const useInventarioStore = defineStore('inventario', {
     state: () => ({
         productos: [],
-        loading: false,
-        error: null
+        loading: false
     }),
     actions: {
         async fetchProductos() {
             this.loading = true;
             try {
-                // Llama al backend monstruoso
-                const { data } = await api.get('/inventario');
+                const { data } = await api.get('/productos'); 
+                
                 this.productos = data;
-            } catch (err) {
-                console.error("Error cargando inventario:", err);
-                this.error = "No se pudo conectar con el servidor";
+            } catch (error) {
+                console.error('Error cargando inventario:', error);
             } finally {
                 this.loading = false;
             }

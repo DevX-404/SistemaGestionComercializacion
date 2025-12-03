@@ -1,49 +1,40 @@
-const ProductoMongo = require('../models/nosql/Producto');
-const { poolPg } = require('../config/databases'); // Traemos la conexión de Postgres
+const { poolPg } = require('../config/databases');
 
-const getProductosConStock = async (req, res) => {
+// Registrar Ingreso de Mercadería (COMPRA)
+const agregarStock = async (req, res) => {
+    const { sku, cantidad, costo_unitario, proveedor_id } = req.body;
+
     try {
-        console.log('⚡ Solicitando productos híbridos...');
+        // 1. Actualizar Stock Físico (Tabla Resumen)
+        await poolPg.query(
+            `UPDATE inventario_resumen 
+             SET stock_actual = stock_actual + $1, 
+                 costo_promedio = $2 
+             WHERE producto_sku = $3`,
+            [cantidad, costo_unitario, sku]
+        );
 
-        // 1. Traer toda la info visual de MongoDB
-        const productosMongo = await ProductoMongo.find({ estado: 'activo' }).lean();
+        // 2. Recuperar stock actual para el Kardex
+        const stockRes = await poolPg.query(
+            'SELECT stock_actual FROM inventario_resumen WHERE producto_sku = $1', 
+            [sku]
+        );
+        const stockFinal = stockRes.rows[0].stock_actual;
 
-        // 2. Extraer los SKUs para preguntar a Postgres
-        const skus = productosMongo.map(p => p.sku);
-        
-        if (skus.length === 0) {
-            return res.json([]); // Si no hay productos, devolver vacío
-        }
+        // 3. Insertar en KARDEX (Historial)
+        await poolPg.query(
+            `INSERT INTO kardex_movimientos 
+            (producto_sku, almacen_id, tipo_movimiento, cantidad, costo_unitario, saldo_stock_resultante, referencia_documento)
+            VALUES ($1, 1, 'COMPRA', $2, $3, $4, $5)`,
+            [sku, cantidad, costo_unitario, stockFinal, `PROV-${proveedor_id}`]
+        );
 
-        // 3. Consultar STOCK en PostgreSQL (Usando IN para ser eficientes)
-        // Nota: $1 es un placeholder, pg requiere formatear el array, 
-        // pero para simplificar haremos un query directo seguro con ANY
-        const querySQL = `
-            SELECT producto_sku, stock_actual 
-            FROM inventario_resumen 
-            WHERE producto_sku = ANY($1)
-        `;
-        
-        const { rows: stocksPostgres } = await poolPg.query(querySQL, [skus]);
-
-        // 4. FUSIONAR DATOS (El paso monstruoso) 🧬
-        const productosFusionados = productosMongo.map(prod => {
-            // Buscamos si este producto tiene stock en la lista de Postgres
-            const stockInfo = stocksPostgres.find(s => s.producto_sku === prod.sku);
-            
-            return {
-                ...prod, // Todo lo de Mongo (nombre, foto, desc)
-                stock: stockInfo ? stockInfo.stock_actual : 0, // Dato de Postgres
-                origen_datos: 'Mongo + Postgres' // Marca de agua para el profesor
-            };
-        });
-
-        res.json(productosFusionados);
+        res.json({ message: 'Stock actualizado correctamente' });
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Error al obtener inventario híbrido' });
+        res.status(500).json({ error: 'Error registrando ingreso' });
     }
 };
 
-module.exports = { getProductosConStock };
+module.exports = { agregarStock };

@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { getReportes } = require('../controllers/reportesController');
+const reportesController = require('../controllers/reportesController');
+const { verificarToken } = require('../middlewares/authMiddleware');
 
-router.get('/dashboard', getReportes);
+// Solo usuarios logueados pueden ver reportes
+router.use(verificarToken);
+
+// GET /api/reportes/ventas?inicio=2023-01-01&fin=2023-01-31
+router.get('/ventas', reportesController.obtenerVentasPorFecha);
 
 module.exports = router;

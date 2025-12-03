@@ -1,106 +1,68 @@
 <template>
-  <div class="page-container">
-    <div class="actions-bar">
-      <h3>👤 Control de Usuarios y Accesos</h3>
-      <button class="btn-primary" @click="abrirModal()">+ Nuevo Usuario</button>
-    </div>
-
-    <div class="card-box">
-        <table class="monster-table">
-            <thead>
-                <tr>
-                    <th>Usuario</th>
-                    <th>Rol Principal</th>
-                    <th>Módulos Habilitados (Permisos)</th>
-                    <th class="text-right">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="user in usuarios" :key="user._id">
-                    <td>
-                        <div class="user-info">
-                            <div class="avatar-circle">{{ user.username.charAt(0).toUpperCase() }}</div>
-                            <div>
-                                <div class="fw-bold">{{ user.nombre_completo }}</div>
-                                <small class="text-muted">@{{ user.username }}</small>
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <span :class="['badge', getRolClass(user.rol)]">{{ user.rol }}</span>
-                    </td>
-                    <td>
-                        <div class="permisos-list">
-                            <span v-for="perm in user.perfil.permisos" :key="perm" class="permiso-tag">
-                                {{ perm }}
-                            </span>
-                        </div>
-                    </td>
-                    <td class="text-right">
-                        <button class="btn-icon edit" @click="abrirModal(user)">✏️</button>
-                        <button class="btn-icon delete" @click="eliminar(user._id)">🗑️</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div v-if="mostrarModal" class="modal-overlay">
-      <div class="modal-content">
-        <div class="modal-header">
-            <h4>{{ modoEdicion ? 'Editar Usuario' : 'Nuevo Usuario' }}</h4>
-            <button @click="cerrarModal" class="btn-close">×</button>
-        </div>
-        
-        <div class="modal-body">
-            <div class="row">
-                <div class="form-group half">
-                    <label>Nombre Completo</label>
-                    <input v-model="form.nombre_completo" type="text">
-                </div>
-                <div class="form-group half">
-                    <label>Email</label>
-                    <input v-model="form.email" type="email">
-                </div>
-            </div>
-            
-            <div class="row">
-                <div class="form-group half">
-                    <label>Usuario (Login)</label>
-                    <input v-model="form.username" type="text" :disabled="modoEdicion">
-                </div>
-                <div class="form-group half">
-                    <label>Contraseña {{ modoEdicion ? '(Opcional)' : '' }}</label>
-                    <input v-model="form.password" type="password" placeholder="******">
-                </div>
-            </div>
-
-            <hr class="separator">
-
-            <div class="form-group">
-                 <label>Rol Principal</label>
-                 <select v-model="form.rol" @change="aplicarPermisosPorRol">
-                   <option value="ADMIN">Administrador (Acceso Total)</option>
-                   <option value="VENDEDOR">Vendedor (Caja y Clientes)</option>
-                   <option value="ALMACEN">Almacén (Inventario y Proveedores)</option>
-                 </select>
-            </div>
-
-            <label class="permisos-label">Módulos Permitidos (Personalizable):</label>
-            <div class="permisos-grid">
-                <label v-for="mod in modulosDisponibles" :key="mod.key" class="checkbox-item">
-                    <input type="checkbox" :value="mod.key" v-model="form.permisos">
-                    <span>{{ mod.label }}</span>
-                </label>
-            </div>
-        </div>
-
-        <div class="modal-footer">
-           <button @click="cerrarModal" class="btn-cancel">Cancelar</button>
-           <button @click="guardarUsuario" class="btn-save">Guardar Cambios</button>
-        </div>
+  <div class="page-container fade-in">
+    <div class="page-header-actions">
+      <div class="title-wrapper">
+        <h3 class="page-title">Usuarios del Sistema</h3>
+        <p class="page-subtitle">Control de accesos y roles de seguridad</p>
       </div>
+      <button class="btn-primary" @click="modal = true">+ Nuevo Usuario</button>
     </div>
+
+    <div class="card-box table-responsive">
+      <table class="monster-table">
+        <thead>
+          <tr>
+            <th>Usuario</th>
+            <th>Nombre Completo</th>
+            <th>Rol / Perfil</th>
+            <th>Estado</th>
+            <th class="text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="u in usuarios" :key="u._id">
+            <td>
+              <div class="cell-wrapper">
+                <div class="avatar-circle bg-purple">{{ u.username.charAt(0).toUpperCase() }}</div>
+                <span class="main-text fw-bold">@{{ u.username }}</span>
+              </div>
+            </td>
+            <td>{{ u.nombre_completo }}</td>
+            <td><span class="badge-light">{{ u.rol }}</span></td>
+            <td><span class="status-dot success"></span> Activo</td>
+            <td class="text-right">
+               <button class="btn-action delete" @click="eliminar(u._id)">🗑️</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <transition name="modal-fade">
+       <div v-if="modal" class="modal-backdrop" @click.self="modal = false">
+          <div class="modal-card slide-in-up">
+            <div class="modal-header"><h4>Nuevo Usuario</h4></div>
+            <div class="modal-body">
+                <div class="form-grid">
+                   <div class="form-group"><label>Username</label><input v-model="form.username" class="input-styled"></div>
+                   <div class="form-group"><label>Rol</label>
+                      <select v-model="form.rol" class="input-styled">
+                          <option value="ADMIN">Administrador</option>
+                          <option value="VENDEDOR">Vendedor</option>
+                          <option value="ALMACENERO">Almacenero</option>
+                      </select>
+                   </div>
+                   <div class="form-group full"><label>Nombre Completo</label><input v-model="form.nombre_completo" class="input-styled"></div>
+                   <div class="form-group full"><label>Contraseña</label><input v-model="form.password" type="password" class="input-styled"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+               <button class="btn-ghost" @click="modal = false">Cancelar</button>
+               <button class="btn-primary" @click="guardar">Crear Usuario</button>
+            </div>
+          </div>
+       </div>
+    </transition>
   </div>
 </template>
 
@@ -109,138 +71,81 @@ import { ref, onMounted } from 'vue';
 import api from '../../api/axios';
 
 const usuarios = ref([]);
-const mostrarModal = ref(false);
-const modoEdicion = ref(false);
-const idEdicion = ref(null);
+const modal = ref(false);
+const form = ref({ username: '', password: '', nombre_completo: '', rol: 'VENDEDOR' });
 
-// Lista maestra de módulos que tienes en tu sistema
-const modulosDisponibles = [
-    { key: 'dashboard', label: '📊 Dashboard' },
-    { key: 'ventas', label: '🛒 Ventas / Caja' },
-    { key: 'clientes', label: '🤝 Clientes' },
-    { key: 'inventario', label: '📦 Inventario / Productos' },
-    { key: 'proveedores', label: '🚚 Proveedores' },
-    { key: 'reportes', label: '📈 Reportes' },
-    { key: 'usuarios', label: '👤 Seguridad (Usuarios)' }
-];
-
-const form = ref({ 
-    username: '', password: '', nombre_completo: '', email: '', 
-    rol: 'VENDEDOR', permisos: [] 
-});
-
-const cargarUsuarios = async () => {
-    try {
-        const { data } = await api.get('/usuarios');
-        usuarios.value = data;
-    } catch (error) { console.error(error); }
+const cargar = async () => { const {data} = await api.get('/usuarios'); usuarios.value = data; };
+const guardar = async () => { 
+    await api.post('/usuarios', form.value); 
+    modal.value = false; cargar(); form.value = { rol: 'VENDEDOR' }; 
 };
+const eliminar = async (id) => { if(confirm('Eliminar?')) await api.delete(`/usuarios/${id}`); cargar(); };
 
-// Pre-selecciona permisos según el rol elegido
-const aplicarPermisosPorRol = () => {
-    if (form.value.rol === 'ADMIN') {
-        // Seleccionar todos
-        form.value.permisos = modulosDisponibles.map(m => m.key);
-    } else if (form.value.rol === 'VENDEDOR') {
-        form.value.permisos = ['dashboard', 'ventas', 'clientes'];
-    } else if (form.value.rol === 'ALMACEN') {
-        form.value.permisos = ['dashboard', 'inventario', 'proveedores'];
-    }
-};
-
-const abrirModal = (user = null) => {
-    mostrarModal.value = true;
-    if (user) {
-        // Modo Editar
-        modoEdicion.value = true;
-        idEdicion.value = user._id;
-        form.value = {
-            username: user.username,
-            nombre_completo: user.nombre_completo,
-            email: user.email,
-            rol: user.rol,
-            permisos: user.perfil.permisos || [], // Cargamos sus permisos actuales
-            password: '' // Vacío por seguridad
-        };
-    } else {
-        // Modo Crear
-        modoEdicion.value = false;
-        form.value = { username: '', password: '', nombre_completo: '', email: '', rol: 'VENDEDOR', permisos: [] };
-        aplicarPermisosPorRol(); // Default
-    }
-};
-
-const guardarUsuario = async () => {
-    try {
-        if (modoEdicion.value) {
-            await api.put(`/usuarios/${idEdicion.value}`, form.value);
-            alert('Usuario actualizado con éxito');
-        } else {
-            await api.post('/usuarios', form.value);
-            alert('Usuario creado con éxito');
-        }
-        cerrarModal();
-        cargarUsuarios();
-    } catch (error) {
-        alert('Error: ' + (error.response?.data?.message || error.message));
-    }
-};
-
-const eliminar = async (id) => {
-    if(confirm('¿Estás seguro de eliminar este usuario?')) {
-        await api.delete(`/usuarios/${id}`);
-        cargarUsuarios();
-    }
-};
-
-const cerrarModal = () => mostrarModal.value = false;
-const getRolClass = (rol) => {
-    if(rol === 'ADMIN') return 'badge-admin';
-    if(rol === 'VENDEDOR') return 'badge-sales';
-    return 'badge-stock';
-};
-
-onMounted(() => cargarUsuarios());
+onMounted(() => cargar());
 </script>
 
 <style scoped>
-.page-container { padding: 20px; }
-.actions-bar { display: flex; justify-content: space-between; margin-bottom: 20px; }
-.btn-primary { background: var(--client-primary); color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; }
+/* Estilos heredados + específico de usuario */
+.bg-purple { background: #8e44ad; }
+.page-container { padding: 10px; }
 
-.card-box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
-.monster-table { width: 100%; border-collapse: collapse; }
-.monster-table th { text-align: left; padding: 15px; color: #a2a5b9; border-bottom: 1px solid #eee; }
-.monster-table td { padding: 15px; border-bottom: 1px solid #f5f7fb; vertical-align: middle; }
+/* HEADER */
+.page-header-actions {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;
+}
+.page-title { margin: 0; font-size: 1.5rem; color: #32325d; font-weight: 700; }
+.page-subtitle { margin: 5px 0 0; color: #8898aa; font-size: 0.9rem; }
 
-.user-info { display: flex; align-items: center; gap: 10px; }
-.avatar-circle { width: 35px; height: 35px; background: #e1f0ff; color: #3699ff; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; }
-.text-muted { color: #b5b5c3; font-size: 0.8rem; }
+.actions-wrapper { display: flex; gap: 15px; }
+.search-input-group {
+  background: white; border-radius: 30px; padding: 8px 15px; box-shadow: 0 1px 3px rgba(50,50,93,.15);
+  display: flex; align-items: center;
+}
+.search-input-group input { border: none; outline: none; margin-left: 10px; color: #525f7f; }
+.btn-pulse { animation: pulse-shadow 2s infinite; }
+@keyframes pulse-shadow { 0% { box-shadow: 0 0 0 0 rgba(94, 114, 228, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(94, 114, 228, 0); } 100% { box-shadow: 0 0 0 0 rgba(94, 114, 228, 0); } }
 
-/* Badges */
-.badge { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
-.badge-admin { background: #ffe2e5; color: #f64e60; }
-.badge-sales { background: #c9f7f5; color: #1bc5bd; }
-.badge-stock { background: #fff4de; color: #ffa800; }
+/* TABLA ESTILIZADA */
+.cell-wrapper { display: flex; align-items: center; gap: 15px; }
+.avatar-circle { width: 40px; height: 40px; background: linear-gradient(87deg, #11cdef 0, #1171ef 100%); color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
+.cell-text { display: flex; flex-direction: column; }
+.main-text { font-weight: 600; color: #32325d; font-size: 0.9rem; }
+.sub-text { font-size: 0.75rem; color: #8898aa; }
 
-.permisos-list { display: flex; gap: 5px; flex-wrap: wrap; }
-.permiso-tag { background: #f3f6f9; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; color: #7e8299; border: 1px solid #eee; }
+.badge-light { background: #e9ecef; color: #32325d; padding: 5px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.status-dot.active { background: #2dce89; }
 
-/* Modal */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 999; }
-.modal-content { background: white; padding: 25px; border-radius: 12px; width: 600px; max-height: 90vh; overflow-y: auto; }
-.modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-.btn-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; }
+.btn-action { width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer; margin-left: 5px; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
+.btn-action.edit { background: #fff; color: #5e72e4; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+.btn-action.edit:hover { background: #5e72e4; color: white; }
+.btn-action.delete { background: #fff; color: #f5365c; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem; }
-.form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #e4e6ef; border-radius: 6px; }
+/* MODAL BONITO */
+.modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); z-index: 999; display: flex; justify-content: center; align-items: center; }
+.modal-card { background: white; width: 550px; border-radius: 15px; box-shadow: 0 15px 35px rgba(50,50,93,.2); overflow: hidden; }
+.modal-header { padding: 20px; background: #f8f9fe; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; }
+.modal-header h4 { margin: 0; color: #32325d; }
+.close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #8898aa; }
 
-.permisos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
-.checkbox-item { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; }
+.modal-body { padding: 30px; }
+.sunat-box { background: #f6f9fc; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px dashed #dee2e6; }
+.input-group-merged { display: flex; gap: 10px; }
+.input-group-merged select, .input-group-merged input { border: 1px solid #dee2e6; padding: 10px; border-radius: 5px; outline: none; }
+.btn-sunat { background: #5e72e4; color: white; border: none; padding: 0 15px; border-radius: 5px; cursor: pointer; font-weight: 600; }
 
-.modal-footer { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
-.btn-save { background: #1bc5bd; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
-.btn-cancel { background: #f3f6f9; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
-.separator { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.form-group.full { grid-column: span 2; }
+.form-group label { display: block; margin-bottom: 8px; color: #525f7f; font-size: 0.85rem; font-weight: 600; }
+.input-styled { width: 100%; padding: 10px; border: 1px solid #e9ecef; border-radius: 5px; background: #fcfcfc; transition: 0.2s; box-sizing: border-box; }
+.input-styled:focus { border-color: #5e72e4; background: white; box-shadow: 0 0 0 3px rgba(94,114,228,.1); outline: none; }
+
+.modal-footer { padding: 20px; background: #f8f9fe; text-align: right; border-top: 1px solid #f0f0f0; }
+.btn-ghost { background: transparent; border: none; color: #8898aa; font-weight: 600; margin-right: 15px; cursor: pointer; }
+
+/* Animación Modal */
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.3s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+.slide-in-up { animation: slideUpModal 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes slideUpModal { from { transform: translateY(50px) scale(0.9); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
 </style>

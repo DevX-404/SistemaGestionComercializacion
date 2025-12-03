@@ -10,6 +10,9 @@ const usuariosRoutes = require('./src/routes/usuarios.routes');
 const reportesRoutes = require('./src/routes/reportes.routes');
 const productosRoutes = require('./src/routes/productos.routes');
 const kardexRoutes = require('./src/routes/kardex.routes');
+const cuentasRoutes = require('./src/routes/cuentas.routes');
+const dashboardRoutes = require('./src/routes/dashboard.routes');
+const categoriaRoutes = require('./src/routes/categorias.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +29,9 @@ app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/kardex', kardexRoutes);
+app.use('/api/cuentas', cuentasRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/categorias', categoriaRoutes);
 app.use(express.static('public'));
 
 // Función para iniciar el sistema monstruoso

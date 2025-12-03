@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { getUsuarios, crearUsuario, eliminarUsuario, editarUsuario } = require('../controllers/usuariosController');
+const usuariosController = require('../controllers/usuariosController');
+const { verificarToken } = require('../middlewares/authMiddleware');
 
-router.get('/', getUsuarios);
-router.post('/', crearUsuario);
-router.put('/:id', editarUsuario);
-router.delete('/:id', eliminarUsuario);
+router.use(verificarToken);
+
+router.get('/', usuariosController.listar);
+router.post('/', usuariosController.crear);
+router.put('/:id', usuariosController.editar);
+router.delete('/:id', usuariosController.eliminar);
 
 module.exports = router;

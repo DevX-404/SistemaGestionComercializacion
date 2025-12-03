@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { getProductosConStock } = require('../controllers/inventarioController');
+const inventarioController = require('../controllers/inventarioController');
 
-// GET http://localhost:3000/api/inventario
-router.get('/', getProductosConStock);
+// POST /api/inventario/entrada
+router.post('/entrada', inventarioController.agregarStock);
 
 module.exports = router;

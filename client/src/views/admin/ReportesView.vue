@@ -1,142 +1,141 @@
 <template>
   <div class="page-container">
-    <h3>📈 Reportes y Analítica</h3>
-    <p class="subtitle">Inteligencia de Negocios en Tiempo Real</p>
+    <h3>📈 Reportes de Ventas</h3>
+    
+    <div class="filters-card">
+      <div class="filter-group">
+        <label>Fecha Inicio</label>
+        <input type="date" v-model="filtros.inicio">
+      </div>
+      <div class="filter-group">
+        <label>Fecha Fin</label>
+        <input type="date" v-model="filtros.fin">
+      </div>
+      <button class="btn-search" @click="buscarVentas">🔍 Consultar</button>
+    </div>
 
-    <div v-if="loading" class="loading">Generando gráficos...</div>
-
-    <div v-else class="charts-grid">
-      
-      <div class="chart-card">
-        <h4>Ventas de la Semana (MySQL)</h4>
-        <div class="canvas-container">
-            <Bar :data="chartVentasData" :options="chartOptions" />
-        </div>
+    <div class="card-box" v-if="ventas.length > 0">
+      <div class="header-result">
+        <h4>Resultados: {{ ventas.length }} ventas encontradas</h4>
+        <button class="btn-pdf" @click="generarPDF">📄 Descargar PDF</button>
       </div>
 
-      <div class="chart-card">
-        <h4>Estado de Deuda (MySQL)</h4>
-        <div class="canvas-container donut">
-            <Doughnut :data="chartDeudaData" :options="donutOptions" />
-        </div>
-      </div>
+      <table class="monster-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Fecha</th>
+            <th>Cliente</th>
+            <th>Tipo Pago</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="v in ventas" :key="v.id">
+            <td>#{{ v.id }}</td>
+            <td>{{ formatearFecha(v.fecha_emision) }}</td>
+            <td>{{ v.cliente }}<br><small>{{ v.numero_documento }}</small></td>
+            <td>
+                <span :class="v.tipo_pago === 'CONTADO' ? 'tag-green' : 'tag-orange'">
+                    {{ v.tipo_pago }}
+                </span>
+            </td>
+            <td class="fw-bold">S/ {{ v.total }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-      <div class="chart-card full-width">
-        <div class="header-danger">
-            <h4>⚠️ Alerta de Reabastecimiento (PostgreSQL)</h4>
-            <span class="badge-count">{{ stockBajo.length }} Items</span>
-        </div>
-        <table class="monster-table">
-            <thead>
-                <tr>
-                    <th>SKU</th>
-                    <th>Stock Actual</th>
-                    <th>Mínimo Requerido</th>
-                    <th>Estado</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="item in stockBajo" :key="item.producto_sku">
-                    <td>{{ item.producto_sku }}</td>
-                    <td class="text-danger fw-bold">{{ item.stock_actual }} unid.</td>
-                    <td>{{ item.stock_minimo }} unid.</td>
-                    <td><span class="badge-critical">CRÍTICO</span></td>
-                </tr>
-                <tr v-if="stockBajo.length === 0">
-                    <td colspan="4" class="text-center">¡Todo el inventario está saludable!</td>
-                </tr>
-            </tbody>
-        </table>
-      </div>
-
+    <div v-else-if="buscado" class="no-results">
+        No se encontraron ventas en este rango.
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import api from '../../api/axios';
-// Importamos componentes de Chart.js
-import {
-  Chart as ChartJS,
-  Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement
-} from 'chart.js';
-import { Bar, Doughnut } from 'vue-chartjs';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable'; // <--- 1. CAMBIO AQUÍ: Importación con nombre
 
-// Registramos los componentes gráficos
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
+const filtros = ref({ inicio: '', fin: '' });
+const ventas = ref([]);
+const buscado = ref(false);
 
-const loading = ref(true);
-const stockBajo = ref([]);
-
-// Datos reactivos para los gráficos
-const chartVentasData = ref({ labels: [], datasets: [] });
-const chartDeudaData = ref({ labels: [], datasets: [] });
-
-// Opciones de estilo
-const chartOptions = { responsive: true, maintainAspectRatio: false };
-const donutOptions = { responsive: true, maintainAspectRatio: false };
-
-onMounted(async () => {
+const buscarVentas = async () => {
+    if(!filtros.value.inicio || !filtros.value.fin) return alert("Selecciona las fechas");
+    
     try {
-        const { data } = await api.get('/reportes/dashboard');
-        
-        // 1. Configurar Gráfico de Ventas
-        chartVentasData.value = {
-            labels: data.ventas_chart.map(v => v.fecha),
-            datasets: [{
-                label: 'Ventas (S/)',
-                backgroundColor: '#3699ff',
-                data: data.ventas_chart.map(v => v.total)
-            }]
-        };
-
-        // 2. Configurar Gráfico de Deuda
-        const deuda = data.deuda_chart;
-        chartDeudaData.value = {
-            labels: ['Cobrado', 'Pendiente de Pago'],
-            datasets: [{
-                backgroundColor: ['#1bc5bd', '#ffa800'],
-                data: [deuda.pagado || 0, deuda.deuda || 0]
-            }]
-        };
-
-        // 3. Tabla de Stock
-        stockBajo.value = data.stock_alerta;
-
+        const { data } = await api.get(`/reportes/ventas?inicio=${filtros.value.inicio}&fin=${filtros.value.fin}`);
+        ventas.value = data;
+        buscado.value = true;
     } catch (error) {
         console.error(error);
-    } finally {
-        loading.value = false;
+        alert("Error obteniendo reporte");
     }
-});
+};
+
+const generarPDF = () => {
+    const doc = new jsPDF();
+
+    // Encabezado
+    doc.setFontSize(18);
+    doc.text("Reporte de Ventas - TecnoMundo", 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Desde: ${filtros.value.inicio} Hasta: ${filtros.value.fin}`, 14, 30);
+    doc.text(`Generado por: Sistema Admin`, 14, 35);
+
+    // Tabla
+    const columnas = ["ID", "Fecha", "Cliente", "Doc", "Pago", "Total (S/)"];
+    const filas = ventas.value.map(v => [
+        v.id,
+        formatearFecha(v.fecha_emision),
+        v.cliente,
+        v.numero_documento,
+        v.tipo_pago,
+        v.total
+    ]);
+
+    // <--- 2. CAMBIO AQUÍ: Usamos la función importada, pasando 'doc' como primer argumento
+    autoTable(doc, {
+        startY: 40,
+        head: [columnas],
+        body: filas,
+        theme: 'grid',
+        headStyles: { fillColor: [44, 62, 80] }, // Color oscuro
+    });
+
+    // Total General al final
+    // autoTable guarda el estado en doc.lastAutoTable
+    const finalY = doc.lastAutoTable.finalY + 10;
+    const totalPeriodo = ventas.value.reduce((acc, curr) => acc + parseFloat(curr.total), 0);
+    
+    doc.setFontSize(12);
+    doc.text(`Total Vendido: S/ ${totalPeriodo.toFixed(2)}`, 14, finalY);
+
+    // Descargar
+    doc.save(`reporte_ventas_${filtros.value.inicio}.pdf`);
+};
+
+const formatearFecha = (f) => new Date(f).toLocaleDateString('es-PE');
 </script>
 
 <style scoped>
-.page-container { padding: 20px; }
-.subtitle { color: #b5b5c3; margin-bottom: 20px; }
-.loading { text-align: center; padding: 50px; font-size: 1.2rem; color: #3699ff; }
+.page-container { padding: 20px; font-family: 'Segoe UI', sans-serif; }
+.filters-card { display: flex; gap: 15px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); align-items: flex-end; margin-bottom: 20px; }
+.filter-group { display: flex; flex-direction: column; }
+.filter-group label { font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; color: #555; }
+.filter-group input { padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
 
-.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-.chart-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); min-height: 350px; }
-.full-width { grid-column: span 2; }
+.btn-search { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; height: 38px; }
+.btn-pdf { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
 
-h4 { margin-top: 0; color: #3f4254; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; margin-bottom: 20px; }
-.canvas-container { height: 300px; }
-.donut { height: 250px; display: flex; justify-content: center; }
-
-/* Tabla de Alerta */
-.header-danger { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ffe2e5; padding-bottom: 10px; margin-bottom: 15px; }
-.header-danger h4 { border: none; margin: 0; color: #f64e60; }
-.badge-count { background: #f64e60; color: white; padding: 2px 10px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; }
-
+.card-box { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+.header-result { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .monster-table { width: 100%; border-collapse: collapse; }
-.monster-table th { text-align: left; padding: 10px; color: #a2a5b9; }
-.monster-table td { padding: 10px; border-top: 1px solid #f0f0f0; color: #3f4254; }
-.text-danger { color: #f64e60; }
+.monster-table th, .monster-table td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+.tag-green { color: #27ae60; font-weight: bold; background: #eafaf1; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
+.tag-orange { color: #e67e22; font-weight: bold; background: #fef5e7; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
+.no-results { text-align: center; color: #777; margin-top: 30px; }
 .fw-bold { font-weight: bold; }
-.badge-critical { background: #ffe2e5; color: #f64e60; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
-.text-center { text-align: center; color: #1bc5bd; }
-
-@media (max-width: 800px) { .charts-grid { grid-template-columns: 1fr; } .full-width { grid-column: span 1; } }
 </style>

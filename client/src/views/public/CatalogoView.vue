@@ -43,7 +43,7 @@
         <TransitionGroup name="list" tag="div" class="products-grid">
             <div v-for="prod in productosFiltrados" :key="prod.sku" class="product-card">
                 <div class="img-wrapper">
-                    <img :src="`http://localhost:3000${prod.imagenes[0]}`" :alt="prod.nombre">
+                    <img :src="prod.imagenes?.[0] ? `http://localhost:3000${prod.imagenes[0]}` : '/placeholder.png'" :alt="prod.nombre">
                     
                     <div class="overlay">
                         <button class="btn-quick" @click="agregarAlCarrito(prod)">
@@ -83,31 +83,33 @@ const notification = ref({ show: false, message: '', type: 'success' });
 // --- NOTIFICACIONES ---
 const showToast = (msg, type = 'success') => {
     notification.value = { show: true, message: msg, type };
-    setTimeout(() => { notification.value.show = false; }, 3000); // 3 seg
+    setTimeout(() => { notification.value.show = false; }, 3000);
 };
 const getTitle = (type) => type === 'success' ? '¡Agregado!' : 'Atención';
 
 // --- LÓGICA ---
 onMounted(async () => {
   try {
-    const { data } = await api.get('/productos');
+    const { data } = await api.get('/productos'); // Asegúrate que tu backend responde en /api/productos
     productos.value = data;
   } catch (error) { console.error(error); }
 });
 
 const productosFiltrados = computed(() => {
   if (categoriaActiva.value === 'Todas') return productos.value;
-  return productos.value.filter(p => p.specs?.categoria === categoriaActiva.value);
+  // Filtramos por la categoría guardada en MongoDB
+  return productos.value.filter(p => p.specs?.categoria === categoriaActiva.value || p.categoria === categoriaActiva.value);
 });
 
 const agregarAlCarrito = (prod) => {
-  // Llamamos al store y recibimos la respuesta (objeto)
+  // Usamos la acción del Store que ya creamos
   const result = cartStore.agregarProducto(prod);
   
-  if (result.success) {
-      showToast(result.message, 'success');
-  } else {
+  // Manejo de respuesta del store (si retorna algo) o feedback manual
+  if (result?.success === false) {
       showToast(result.message, 'warning');
+  } else {
+      showToast('Producto añadido al carrito', 'success');
   }
 };
 </script>

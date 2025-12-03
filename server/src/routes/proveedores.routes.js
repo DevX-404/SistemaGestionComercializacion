@@ -1,12 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const proveedoresController = require('../controllers/proveedoresController');
-const validarDatos = require('../middlewares/validarDatos');
+const { verificarToken } = require('../middlewares/authMiddleware');
 
-// GET: http://localhost:3000/api/proveedores
+router.use(verificarToken);
+
+// Rutas
 router.get('/', proveedoresController.listar);
+router.post('/', proveedoresController.crear);
+router.delete('/:id', proveedoresController.eliminar);
 
-// POST: http://localhost:3000/api/proveedores
-router.post('/', validarDatos(proveedoresController.schemaProveedor), proveedoresController.crear);
+// NUEVA RUTA PARA LA API SUNAT
+router.post('/consulta-ruc', proveedoresController.consultarRuc);
 
 module.exports = router;

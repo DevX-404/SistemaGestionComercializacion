@@ -1,86 +1,84 @@
 const { connectMySQL } = require('../config/databases');
-// const axios = require('axios'); // Descomenta esto cuando tengas tu API Key real
+const { consultarDNI, consultarRUC } = require('./apiExternas'); // Tu archivo de API
 
 class ClienteService {
 
-    // 1. Buscar o Crear (Lógica de Negocio Profesional)
-    // Esta función es la que llamará el "Punto de Venta" cuando escribas un DNI
-    async buscarOCrear(documento) {
-        const { tipo, numero } = documento;
+    // --- 1. Consultar (Lógica Inteligente) ---
+    // Esta función es la que usa el botón "Consultar API"
+    async buscarOCrear({ tipo, numero }) {
         const connection = await connectMySQL();
 
         try {
-            // A. Primero buscamos en NUESTRA base de datos local (MySQL)
+            // A. Primero buscamos en NUESTRA base de datos (Más rápido y gratis)
             const [rows] = await connection.execute(
-                'SELECT * FROM clientes WHERE numero_documento = ? AND tipo_documento = ?',
-                [numero, tipo]
+                'SELECT * FROM clientes WHERE tipo_documento = ? AND numero_documento = ?',
+                [tipo, numero]
             );
 
             if (rows.length > 0) {
-                // ¡El cliente ya existe! No gastamos saldo de API externa.
-                return { encontrado: true, fuente: 'LOCAL', datos: rows[0] };
+                return { 
+                    encontrado_en: 'BASE_DATOS',
+                    ...rows[0] 
+                };
             }
 
-            // B. Si no existe, consultamos API EXTERNA (Simulación Profesional)
-            // Aquí iría tu llamada real a apisperu.com o similar.
-            console.log(`📡 Consultando API externa para ${tipo}: ${numero}...`);
-            
-            let datosExternos = {};
+            // B. Si no existe, consultamos a la API EXTERNA (RENIEC/SUNAT)
+            let datosExternos = null;
             
             if (tipo === 'DNI') {
-                // Simulación de respuesta RENIEC
-                datosExternos = {
-                    razon_social: 'JUAN PEREZ (DESDE RENIEC)',
-                    direccion: 'AV. SIMULADA 123, LIMA',
-                    telefono: '',
-                    email: ''
-                };
-            } else {
-                // Simulación de respuesta SUNAT
-                datosExternos = {
-                    razon_social: 'EMPRESA IMPORTADORA S.A.C.',
-                    direccion: 'CALLE INDUSTRIAL 500, CALLAO',
-                    telefono: '01-555-9999',
-                    email: 'contacto@empresa.pe'
-                };
+                datosExternos = await consultarDNI(numero);
+            } else if (tipo === 'RUC') {
+                datosExternos = await consultarRUC(numero);
             }
 
-            // C. Guardamos el nuevo cliente automáticamente en MySQL
-            // Así la próxima vez ya estará "cacheado" en tu sistema.
-            const [insert] = await connection.execute(
-                `INSERT INTO clientes (tipo_documento, numero_documento, razon_social, direccion, telefono, email) 
-                 VALUES (?, ?, ?, ?, ?, ?)`,
-                [tipo, numero, datosExternos.razon_social, datosExternos.direccion, datosExternos.telefono, datosExternos.email]
-            );
+            if (!datosExternos) {
+                throw new Error('No se encontraron datos en el padrón oficial.');
+            }
 
-            // Devolvemos los datos listos al Frontend
             return {
-                encontrado: true,
-                fuente: 'API_EXTERNA',
-                datos: {
-                    id: insert.insertId,
-                    tipo_documento: tipo,
-                    numero_documento: numero,
-                    ...datosExternos
-                }
+                encontrado_en: 'API_EXTERNA',
+                tipo_documento: tipo,
+                numero_documento: numero,
+                ...datosExternos
             };
 
-        } catch (error) {
-            throw new Error('Error al gestionar cliente: ' + error.message);
         } finally {
             connection.end();
         }
     }
 
-    // 2. Listado General (Para el panel de administración)
-    async listarTodos() {
+    // --- 2. Guardar Cliente Nuevo ---
+    async crearCliente(datos) {
         const connection = await connectMySQL();
         try {
-            const [rows] = await connection.execute('SELECT * FROM clientes ORDER BY id DESC');
-            return rows;
+            // Verificamos duplicados antes de insertar
+            const [existe] = await connection.execute(
+                'SELECT id FROM clientes WHERE numero_documento = ?', 
+                [datos.numero_documento]
+            );
+            
+            if (existe.length > 0) {
+                throw new Error('El cliente ya está registrado.');
+            }
+
+            await connection.execute(
+                `INSERT INTO clientes (tipo_documento, numero_documento, razon_social, direccion, email, telefono) 
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [datos.tipo_documento, datos.numero_documento, datos.razon_social, datos.direccion, datos.email, datos.telefono]
+            );
+
+            return { message: 'Cliente registrado correctamente' };
         } finally {
             connection.end();
         }
+    }
+
+    // --- 3. Listar Todos ---
+    async listarTodos() {
+        const connection = await connectMySQL();
+        const [rows] = await connection.execute('SELECT * FROM clientes ORDER BY id DESC');
+        connection.end();
+        return rows;
     }
 }
 

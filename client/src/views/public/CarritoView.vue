@@ -132,7 +132,7 @@
             <h3>Tu Pedido</h3>
             <div class="summary-items">
                 <div v-for="item in cart.items" :key="item.sku" class="mini-item">
-                    <img :src="`http://localhost:3000${item.imagenes[0]}`">
+                    <img :src="item.imagenes?.[0] ? `http://localhost:3000${item.imagenes[0]}` : '/placeholder.png'">
                     
                     <div class="item-details">
                         <p class="mini-name">{{ item.nombre }}</p>
@@ -189,7 +189,7 @@ const cuotas = ref(1);
 const cardForm = ref({ numero: '', nombre: '', exp: '', cvc: '' });
 const isFlipped = ref(false);
 
-// --- SISTEMA DE NOTIFICACIONES (Argon Toast) ---
+// --- NOTIFICACIONES ---
 const showToast = (msg, type = 'success') => {
     notification.value = { show: true, message: msg, type };
     setTimeout(() => { notification.value.show = false; }, 4000);
@@ -201,26 +201,22 @@ const getTitle = (type) => {
     return 'Información';
 };
 
-// --- CONTROL DE CARRITO (Wrapper para evitar alerts nativos) ---
+// --- CONTROL CARRITO ---
 const sumarItem = (item) => {
     const res = cart.agregarProducto(item);
     if (!res.success) showToast(res.message, 'warning');
 };
-
-const restarItem = (item) => {
-    cart.disminuirCantidad(item.sku);
-};
-
+const restarItem = (item) => cart.disminuirCantidad(item.sku);
 const eliminarItem = (sku) => {
     cart.quitarProducto(sku);
-    showToast('Producto eliminado del carrito', 'info');
+    showToast('Producto eliminado', 'info');
 };
 
-// --- LÓGICA DE NEGOCIO ---
+// --- LÓGICA NEGOCIO ---
 const buscarClienteApi = async () => {
     if (!numDoc.value) {
         errors.numDoc = true;
-        return showToast('Ingrese un número de documento', 'warning');
+        return showToast('Ingrese documento', 'warning');
     }
     errors.numDoc = false;
     buscando.value = true;
@@ -232,7 +228,7 @@ const buscarClienteApi = async () => {
             showToast('Cliente encontrado', 'success');
         }
     } catch (error) {
-        showToast('Documento no encontrado en RENIEC/SUNAT', 'warning');
+        showToast('No encontrado en padrón oficial', 'warning');
     } finally { buscando.value = false; }
 };
 
@@ -241,70 +237,95 @@ const calcularCuota = () => {
     return ((cart.totalVenta * (1 + interes)) / cuotas.value).toFixed(2);
 };
 
-// --- GENERAR PDF ---
+// --- PDF ---
 const generarBoletaPDF = (idVenta) => {
     const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(18); doc.setTextColor(40);
     doc.text("MONSTER STORE S.A.C.", 105, 20, null, null, "center");
     doc.setFontSize(10);
-    doc.text(`RUC: 20100000001 - Boleta Electrónica: ${idVenta}`, 105, 28, null, null, "center");
-    
-    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 15, 45);
-    doc.text(`Cliente: ${clienteNombre.value}`, 15, 52);
-    doc.text(`DOC: ${numDoc.value}`, 15, 59);
+    doc.text(`Orden: ${idVenta} - Fecha: ${new Date().toLocaleDateString()}`, 105, 28, null, null, "center");
+    doc.text(`Cliente: ${clienteNombre.value} | DOC: ${numDoc.value}`, 15, 45);
 
     const body = cart.items.map(i => [i.cantidad, i.nombre, `S/ ${i.precio_base}`, `S/ ${(i.precio_base*i.cantidad).toFixed(2)}`]);
+    autoTable(doc, { startY: 55, head: [['Cant', 'Item', 'P.Unit', 'Total']], body });
     
-    autoTable(doc, {
-        startY: 70,
-        head: [['Cant', 'Descripción', 'P.Unit', 'Total']],
-        body: body,
-        theme: 'grid',
-        headStyles: { fillColor: [45, 206, 137] }
-    });
-
-    doc.setFontSize(12);
-    doc.setTextColor(255, 0, 0);
-    doc.text(`Total Pagado: S/ ${cart.totalVenta.toFixed(2)}`, 140, doc.lastAutoTable.finalY + 10);
+    doc.setFontSize(12); doc.setTextColor(255, 0, 0);
+    doc.text(`Total: S/ ${cart.totalVenta.toFixed(2)}`, 140, doc.lastAutoTable.finalY + 10);
     doc.save(`Boleta_${idVenta}.pdf`);
 };
 
+// --- PROCESAR COMPRA (CORREGIDO DEFINITIVO) ---
 const procesarCompra = async () => {
     if (!clienteNombre.value) return showToast('Identifíquese primero (Paso 1)', 'warning');
     
     procesando.value = true;
     try {
-        let clienteId = 1; 
+        let clienteId = 1; // ID por defecto
+
+        // 1. Intentamos registrar al cliente (Si falla por duplicado, no importa)
         try {
             await api.post('/clientes', {
-                tipo_documento: tipoDoc.value, numero_documento: numDoc.value,
-                razon_social: clienteNombre.value, direccion: clienteDireccion.value,
-                email: 'web@cliente.com', telefono: '999'
+                tipo_documento: tipoDoc.value, 
+                numero_documento: numDoc.value,
+                razon_social: clienteNombre.value, 
+                direccion: clienteDireccion.value,
+                email: 'web@cliente.com', 
+                telefono: '999'
             });
+        } catch (e) { 
+            console.log("Cliente ya existe, procedemos a buscar su ID...");
+        }
+
+        // 2. Buscamos su ID real en la BD
+        try {
             const res = await api.get('/clientes');
-            const nuevo = res.data.find(c => c.numero_documento === numDoc.value);
-            if (nuevo) clienteId = nuevo.id;
-        } catch (e) { /* Ignorar si existe */ }
+            // Buscamos el cliente que coincida con el documento ingresado
+            const encontrado = res.data.find(c => c.numero_documento === numDoc.value);
+            if (encontrado) {
+                clienteId = encontrado.id;
+            } else {
+                console.warn("Cliente no encontrado en BD, usaremos ID genérico (1)");
+            }
+        } catch (e) { console.error("Error recuperando ID cliente", e); }
+
+        // 3. Preparamos los items para que el Backend los entienda
+        // AQUÍ ESTABA EL ERROR: Mapeamos 'precio_base' a 'precio_unitario'
+        const itemsProcesados = cart.items.map(item => ({
+            sku: item.sku,
+            cantidad: item.cantidad,
+            precio_unitario: item.precio_base, // <--- ¡LA CLAVE!
+            subtotal: item.precio_base * item.cantidad
+        }));
 
         const payload = {
-            cliente_id: clienteId, usuario_id: 'WEB', items: cart.items,
-            tipo_pago: metodoPago.value === 'CREDITO' ? 'CREDITO' : 'CONTADO', total: cart.totalVenta
+            cliente_id: clienteId, 
+            usuario_id: 'WEB-USER', 
+            items: itemsProcesados, // <--- Enviamos los items corregidos
+            tipo_pago: metodoPago.value === 'CREDITO' ? 'CREDITO' : 'CONTADO', 
+            total: cart.totalVenta,
+            cuotas: metodoPago.value === 'CREDITO' ? cuotas.value : 1
         };
         
-        const { data } = await api.post('/ventas/procesar', payload);
-        showToast(`¡Compra Exitosa! ID: ${data.venta_id}`, 'success');
-        generarBoletaPDF(data.venta_id || Date.now());
+        // Enviamos la venta
+        const { data } = await api.post('/ventas', payload);
+        
+        // Éxito
+        showToast(`¡Compra Exitosa! ID: ${data.venta_id || data.id_venta}`, 'success');
+        generarBoletaPDF(data.venta_id || data.id_venta);
 
         setTimeout(() => {
             cart.vaciarCarrito();
-            window.location.href = '/';
-        }, 3000);
+            window.location.href = '/catalogo';
+        }, 2500);
 
     } catch (error) {
         console.error(error);
-        showToast("Hubo un error procesando la venta", 'danger');
-    } finally { procesando.value = false; }
+        // Mostramos el mensaje exacto que devuelve el backend
+        const mensajeError = error.response?.data?.mensaje || error.response?.data?.error || error.message;
+        showToast("Error: " + mensajeError, 'danger');
+    } finally { 
+        procesando.value = false; 
+    }
 };
 </script>
 

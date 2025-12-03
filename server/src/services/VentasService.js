@@ -1,11 +1,9 @@
-// server/src/services/ventasService.js
 const { connectMySQL, poolPg } = require('../config/databases');
 
 class VentasService {
 
     async crearNuevaVenta(datosVenta) {
-        // Desestructuramos los datos que vienen del frontend
-        const { cliente_id, usuario_id, items, tipo_pago, total } = datosVenta;
+        const { cliente_id, usuario_id, items, tipo_pago, total, cuotas } = datosVenta;
         
         let connectionMySQL;
 
@@ -13,8 +11,8 @@ class VentasService {
             console.log('🔄 Iniciando proceso de venta...');
 
             // ---------------------------------------------------------
-            // 1. VALIDACIÓN PREVIA (PostgreSQL)
-            // Antes de cobrar, verificamos si hay stock real en el almacén
+            // 1. VALIDACIÓN PREVIA (PostgreSQL - Logística)
+            // Verificamos si hay stock real antes de intentar cobrar
             // ---------------------------------------------------------
             for (const item of items) {
                 const stockQuery = 'SELECT stock_actual FROM inventario_resumen WHERE producto_sku = $1';
@@ -30,8 +28,8 @@ class VentasService {
             }
 
             // ---------------------------------------------------------
-            // 2. INICIAR TRANSACCIÓN (MySQL)
-            // Empezamos a guardar la venta "financiera"
+            // 2. INICIAR TRANSACCIÓN (MySQL - Ventas)
+            // Guardamos la información financiera
             // ---------------------------------------------------------
             connectionMySQL = await connectMySQL();
             await connectionMySQL.beginTransaction();
@@ -59,22 +57,37 @@ class VentasService {
                 );
             }
 
-            // C. Si es CRÉDITO, generamos la deuda
+            // --- C. LÓGICA DE CRÉDITO (AQUÍ ESTÁ EL CAMBIO IMPORTANTE) ---
             if (tipo_pago === 'CREDITO') {
-                const fechaVencimiento = new Date();
-                fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // Vence en 30 días
-
-                await connectionMySQL.execute(
+                const numCuotas = cuotas || 1; // Si no envían cuotas, asumimos 1
+                const montoPorCuota = total / numCuotas;
+                
+                // 1. Crear la Cuenta por Cobrar General
+                const [cuentaResult] = await connectionMySQL.execute(
                     `INSERT INTO cuentas_por_cobrar 
-                    (venta_id, monto_total, saldo_pendiente, fecha_vencimiento, estado) 
-                    VALUES (?, ?, ?, ?, 'PENDIENTE')`,
-                    [ventaId, total, total, fechaVencimiento]
+                    (venta_id, monto_total, saldo_pendiente, fecha_vencimiento, cuotas_totales, estado) 
+                    VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 DAY), ?, 'PENDIENTE')`,
+                    [ventaId, total, total, numCuotas]
                 );
+                const cuentaId = cuentaResult.insertId;
+
+                // 2. Generar el Cronograma (Bucle para las 12 cuotas)
+                for (let i = 1; i <= numCuotas; i++) {
+                    const diasSumar = i * 30; // 30, 60, 90 días...
+                    
+                    await connectionMySQL.execute(
+                        `INSERT INTO cronograma_pagos 
+                        (cuenta_id, numero_cuota, monto_cuota, fecha_vencimiento)
+                        VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? DAY))`,
+                        [cuentaId, i, montoPorCuota, diasSumar]
+                    );
+                }
+                console.log(`📅 Se generó un cronograma de ${numCuotas} cuotas.`);
             }
 
             // ---------------------------------------------------------
             // 3. ACTUALIZAR LOGÍSTICA (PostgreSQL)
-            // Si MySQL guardó bien, descargamos el stock
+            // Descargamos el stock y actualizamos el Kardex
             // ---------------------------------------------------------
             for (const item of items) {
                 // A. Restar Stock Físico
@@ -84,7 +97,6 @@ class VentasService {
                 );
 
                 // B. Registrar en KARDEX (Historial)
-                // Recuperamos el stock final para dejar constancia
                 const stockFinalRes = await poolPg.query('SELECT stock_actual FROM inventario_resumen WHERE producto_sku = $1', [item.sku]);
                 const stockFinal = stockFinalRes.rows[0].stock_actual;
 
@@ -98,7 +110,6 @@ class VentasService {
 
             // ---------------------------------------------------------
             // 4. FINALIZAR
-            // Si llegamos aquí, todo fue perfecto. Guardamos cambios.
             // ---------------------------------------------------------
             await connectionMySQL.commit();
             console.log('✅ Venta finalizada con éxito. ID:', ventaId);
@@ -110,10 +121,10 @@ class VentasService {
             };
 
         } catch (error) {
-            // Si algo falla, deshacemos todo lo de MySQL
+            // Si falla algo (ej: error en Postgres), deshacemos lo de MySQL
             if (connectionMySQL) await connectionMySQL.rollback();
             console.error('❌ Error en servicio de ventas:', error.message);
-            throw error; // Le pasamos el error al controlador
+            throw error;
         } finally {
             if (connectionMySQL) connectionMySQL.end();
         }

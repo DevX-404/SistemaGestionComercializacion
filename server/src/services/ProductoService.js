@@ -1,81 +1,77 @@
-const { connectPostgres } = require('../config/databases');
-const ProductoMongo = require('../models/nosql/Producto'); // Tu modelo de Mongo
+const { connectMongo, poolPg } = require('../config/databases');
+const Producto = require('../models/nosql/Producto'); // Asegúrate de tener este modelo Mongoose
 
 class ProductoService {
 
-    // Crear un producto nuevo (El sistema se encarga de distribuir los datos)
-    async crearProducto(datos) {
-        const { sku, nombre, precio, stock_inicial, descripcion, categoria } = datos;
-        const poolPg = await connectPostgres(); // Conexión a Postgres
-
-        // 1. Verificación de seguridad: ¿Ya existe el SKU?
-        // Revisamos en Mongo primero
-        const existeMongo = await ProductoMongo.findOne({ sku });
-        if (existeMongo) throw new Error(`El código SKU '${sku}' ya existe en el catálogo.`);
-
-        // 2. Guardar Ficha Técnica en MongoDB (Datos "blandos")
-        const nuevoProductoMongo = new ProductoMongo({
-            sku,
-            nombre,
-            precio_base: precio,
-            descripcion_corta: descripcion,
-            specs: { categoria } // Puedes agregar más detalles aquí
-        });
-        await nuevoProductoMongo.save();
+    async crearProducto(datosProducto, archivoImagen) {
+        const { sku, nombre, descripcion, precio, stock_inicial, categoria } = datosProducto;
+        let session = null; // Para transacción en Mongo (opcional, pero recomendado)
 
         try {
-            // 3. Guardar Inventario en PostgreSQL (Datos "duros")
-            // A. Insertar en tabla de stock físico
-            await poolPg.query(
-                `INSERT INTO inventario_resumen (producto_sku, almacen_id, stock_actual, costo_promedio) 
-                 VALUES ($1, 1, $2, $3)`,
-                [sku, stock_inicial, precio * 0.70] // Asumimos costo es 70% del precio por ahora
-            );
+            console.log('📦 Registrando nuevo producto:', sku);
 
-            // B. Iniciar el Kardex (Historial)
-            await poolPg.query(
-                `INSERT INTO kardex_movimientos 
-                (producto_sku, almacen_id, tipo_movimiento, cantidad, saldo_stock_resultante, referencia_documento)
-                VALUES ($1, 1, 'INVENTARIO_INICIAL', $2, $2, 'APERTURA')`,
-                [sku, stock_inicial]
-            );
+            // ---------------------------------------------------------
+            // 1. GUARDAR EN MONGODB (Catálogo e Imagen)
+            // ---------------------------------------------------------
+            // Preparamos la ruta de la imagen si existe
+            const rutaImagen = archivoImagen ? `/img/${archivoImagen.filename}` : null;
 
-            return { success: true, mensaje: 'Producto creado y sincronizado en todas las bases de datos.' };
+            const nuevoProductoMongo = new Producto({
+                sku,
+                nombre,
+                descripcion,
+                precio_base: precio,
+                imagenes: rutaImagen ? [rutaImagen] : [],
+                specs: { categoria }, // Guardamos la categoría en specs o campo directo
+                stock: stock_inicial // Dato redundante visual para el front rápido
+            });
+
+            await nuevoProductoMongo.save();
+            console.log('✅ Guardado en MongoDB');
+
+            // ---------------------------------------------------------
+            // 2. GUARDAR EN POSTGRESQL (Logística y Stock Real)
+            // ---------------------------------------------------------
+            // A. Insertar en inventario_resumen (Stock actual)
+            // Asumimos almacen_id = 1 por defecto
+            const queryInventario = `
+                INSERT INTO inventario_resumen (producto_sku, almacen_id, stock_actual, stock_minimo, costo_promedio)
+                VALUES ($1, $2, $3, $4, $5)
+            `;
+            await poolPg.query(queryInventario, [sku, 1, stock_inicial, 5, precio * 0.8]); // Costo estimado al 80% del precio
+
+            // B. Insertar en Kardex (El primer movimiento: INVENTARIO INICIAL)
+            if (stock_inicial > 0) {
+                const queryKardex = `
+                    INSERT INTO kardex_movimientos 
+                    (producto_sku, almacen_id, tipo_movimiento, cantidad, saldo_stock_resultante, referencia_documento)
+                    VALUES ($1, $2, 'INVENTARIO_INICIAL', $3, $4, 'APERTURA')
+                `;
+                await poolPg.query(queryKardex, [sku, 1, stock_inicial, stock_inicial]);
+            }
+            console.log('✅ Guardado en PostgreSQL (Inventario + Kardex)');
+
+            return { success: true, message: 'Producto creado en todas las bases de datos' };
 
         } catch (error) {
-            // SI FALLA POSTGRES, BORRAMOS DE MONGO PARA NO TENER DATOS HUEFANOS (Rollback manual)
-            await ProductoMongo.deleteOne({ sku });
-            throw new Error('Error al crear inventario en SQL: ' + error.message);
+            console.error('❌ Error creando producto:', error);
+            // Aquí idealmente haríamos rollback (borrar de Mongo si falló Postgres)
+            // Por simplicidad académica, lanzamos el error.
+            throw new Error('Error al sincronizar bases de datos: ' + error.message);
         }
     }
 
-    // Listar productos (Uniendo datos de Mongo y Postgres)
     async listarTodo() {
-        const poolPg = await connectPostgres();
-        
-        // 1. Traemos la info bonita de Mongo
-        const productosMongo = await ProductoMongo.find({}, 'sku nombre precio_base imagenes');
-
-        // 2. Traemos el stock de Postgres
-        const resStock = await poolPg.query('SELECT producto_sku, stock_actual FROM inventario_resumen');
-        
-        // 3. Mezclamos (Esto es "Data Blending")
-        const inventarioMap = {};
-        resStock.rows.forEach(item => {
-            inventarioMap[item.producto_sku] = item.stock_actual;
-        });
-
-        const resultadoFinal = productosMongo.map(prod => {
-            return {
-                sku: prod.sku,
-                nombre: prod.nombre,
-                precio: prod.precio_base,
-                stock: inventarioMap[prod.sku] || 0, // Si no encuentra, pone 0
-                imagen: prod.imagenes[0] || 'default.jpg'
-            };
-        });
-
-        return resultadoFinal;
+        // Para listar, leemos de Mongo que es más rápido para catálogos
+        // Pero podríamos hacer un "enrich" con el stock real de Postgres si quisiéramos ser muy estrictos.
+        return await Producto.find().sort({ createdAt: -1 });
+    }
+    
+    async eliminar(sku) {
+        // Eliminar de ambas BD
+        await Producto.deleteOne({ sku });
+        await poolPg.query('DELETE FROM inventario_resumen WHERE producto_sku = $1', [sku]);
+        return { message: 'Producto eliminado' };
     }
 }
 

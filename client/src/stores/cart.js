@@ -1,15 +1,17 @@
 import { defineStore } from 'pinia';
+import axios from 'axios';
 
 export const useCartStore = defineStore('cart', {
     state: () => ({
         items: [],
-        cliente: null,
-        tipoVenta: 'CONTADO'
+        cliente_id: 1, 
+        tipoVenta: 'CONTADO',
+        cuotas: 1 
     }),
     getters: {
-        totalVenta: (state) => state.items.reduce((acc, item) => acc + (item.precio_base * item.cantidad), 0),
-        igv: (state) => state.totalVenta * 0.18,
-        subtotal: (state) => state.totalVenta - (state.totalVenta * 0.18)
+        subtotal: (state) => state.items.reduce((acc, item) => acc + (item.precio_base * item.cantidad), 0),
+        igv: (state) => state.subtotal * 0.18,
+        totalVenta: (state) => state.subtotal + state.igv
     },
     actions: {
         agregarProducto(producto) {
@@ -17,22 +19,11 @@ export const useCartStore = defineStore('cart', {
             if (existente) {
                 if (existente.cantidad < producto.stock) {
                     existente.cantidad++;
-                    return { success: true, message: 'Cantidad actualizada en carrito' };
                 } else {
-                    return { success: false, message: '¡No hay más stock disponible!' };
+                    alert('¡No hay más stock disponible!');
                 }
             } else {
                 this.items.push({ ...producto, cantidad: 1 });
-                return { success: true, message: 'Producto agregado al carrito' };
-            }
-        },
-        disminuirCantidad(sku) {
-            const item = this.items.find(i => i.sku === sku);
-            if (item) {
-                item.cantidad--;
-                if (item.cantidad <= 0) {
-                    this.quitarProducto(sku);
-                }
             }
         },
         quitarProducto(sku) {
@@ -40,7 +31,40 @@ export const useCartStore = defineStore('cart', {
         },
         vaciarCarrito() {
             this.items = [];
-            this.cliente = null;
+            this.cuotas = 1;
+            this.tipoVenta = 'CONTADO';
+        },
+        
+        // --- LA NUEVA FUNCIÓN QUE CONECTA CON EL BACKEND ---
+        async procesarVenta() {
+            if (this.items.length === 0) return alert("El carrito está vacío");
+
+            const datosVenta = {
+                cliente_id: this.cliente_id,
+                usuario_id: "ADMIN-001", // Harcodeado por ahora (luego vendrá del login)
+                items: this.items.map(i => ({
+                    sku: i.sku,
+                    cantidad: i.cantidad,
+                    precio: i.precio_base, // Enviamos precio base para que back calcule
+                    subtotal: i.precio_base * i.cantidad
+                })),
+                tipo_pago: this.tipoVenta,
+                total: this.totalVenta,
+                cuotas: parseInt(this.cuotas) // Enviamos las cuotas al backend
+            };
+
+            try {
+                // Llamada al servidor (Asegúrate que tu backend corre en el 3000)
+                const response = await axios.post('http://localhost:3000/api/ventas', datosVenta);
+                
+                if (response.data.success) {
+                    alert(`✅ Venta registrada con éxito! ID: ${response.data.id_venta}`);
+                    this.vaciarCarrito();
+                }
+            } catch (error) {
+                console.error(error);
+                alert("❌ Error al procesar la venta: " + (error.response?.data?.mensaje || error.message));
+            }
         }
     }
 });

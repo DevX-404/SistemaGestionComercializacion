@@ -1,36 +1,51 @@
 const proveedorService = require('../services/ProveedorService');
 const Joi = require('joi');
 
-// Validación estricta para empresas peruanas
+// Schema de validación (Igual que antes)
 const schemaProveedor = Joi.object({
-    ruc: Joi.string().length(11).pattern(/^[0-9]+$/).required().messages({
-        'string.length': 'El RUC debe tener exactamente 11 dígitos',
-        'string.pattern.base': 'El RUC solo debe contener números'
-    }),
-    razon_social: Joi.string().min(3).required(),
-    contacto_nombre: Joi.string().optional().allow(''),
-    telefono: Joi.string().min(6).optional().allow(''),
-    direccion: Joi.string().optional().allow('')
+    ruc: Joi.string().length(11).pattern(/^[0-9]+$/).required(),
+    razon_social: Joi.string().required(),
+    contacto_nombre: Joi.string().allow('').optional(),
+    telefono: Joi.string().allow('').optional(),
+    direccion: Joi.string().allow('').optional()
 });
 
 const listar = async (req, res) => {
     try {
-        const proveedores = await proveedorService.listarTodos();
-        res.json(proveedores);
-    } catch (error) {
-        res.status(500).json({ success: false, mensaje: error.message });
-    }
+        const lista = await proveedorService.listarTodos();
+        res.json(lista);
+    } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
 const crear = async (req, res) => {
     try {
-        const resultado = await proveedorService.crear(req.body);
-        res.status(201).json(resultado);
+        // Validamos datos
+        const { error } = schemaProveedor.validate(req.body);
+        if (error) return res.status(400).json({ message: error.details[0].message });
+
+        const result = await proveedorService.crear(req.body);
+        res.status(201).json(result);
+    } catch (e) { res.status(400).json({ message: e.message }); }
+};
+
+const eliminar = async (req, res) => {
+    try {
+        await proveedorService.eliminar(req.params.id);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+};
+
+// --- NUEVO: CONSULTAR RUC ---
+const consultarRuc = async (req, res) => {
+    try {
+        const { ruc } = req.body;
+        if (!ruc || ruc.length !== 11) return res.status(400).json({ message: 'RUC inválido' });
+
+        const datos = await proveedorService.buscarRUC(ruc);
+        res.json({ success: true, ...datos });
     } catch (error) {
-        // Si es error de negocio (ya existe), mandamos 400, si es base de datos 500
-        const codigo = error.message.includes('ya está registrado') ? 400 : 500;
-        res.status(codigo).json({ success: false, mensaje: error.message });
+        res.status(404).json({ success: false, message: error.message });
     }
 };
 
-module.exports = { listar, crear, schemaProveedor };
+module.exports = { listar, crear, eliminar, consultarRuc };

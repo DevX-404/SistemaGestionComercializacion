@@ -1,34 +1,88 @@
 <template>
-  <div class="admin-container">
-    <Sidebar />
-    <main class="main-content">
-      <TopBar :title="currentRouteName" />
-      <div class="content-body">
-        <router-view />
+  <div class="admin-layout" :class="{ 'mobile-open': showSidebar }">
+    
+    <Sidebar class="sidebar-area" :class="{ 'open': showSidebar }" @close="showSidebar = false" />
+
+    <div class="main-content">
+      <TopBar @toggle-sidebar="showSidebar = !showSidebar" />
+      
+      <div class="view-wrapper">
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </div>
-    </main>
+    </div>
+
+    <div v-if="showSidebar" class="mobile-overlay" @click="showSidebar = false"></div>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import Sidebar from './Sidebar.vue';
 import TopBar from './TopBar.vue';
-import { computed } from 'vue';
-import { useRoute } from 'vue-router';
 
-const route = useRoute();
-// Obtenemos el nombre de la ruta para el título (ej: "Orders", "Dashboard")
-const currentRouteName = computed(() => route.name ? route.name.charAt(0).toUpperCase() + route.name.slice(1) : 'Dashboard');
+const showSidebar = ref(false);
 </script>
 
 <style scoped>
-.admin-container { display: flex; background-color: var(--admin-bg); min-height: 100vh; }
-.main-content {
-    margin-left: 260px; /* Mismo ancho que el sidebar */
-    flex: 1;
-    padding: 30px;
-    display: flex;
-    flex-direction: column;
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8f9fe;
+  position: relative;
 }
-.content-body { flex: 1; }
+
+/* --- SIDEBAR --- */
+.sidebar-area {
+  width: 260px;
+  flex-shrink: 0; /* No encogerse */
+  height: 100vh;
+  position: fixed; /* Fijo para que no scrollee con la página */
+  top: 0;
+  left: 0;
+  z-index: 100;
+  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* --- CONTENIDO PRINCIPAL --- */
+.main-content {
+  flex: 1;
+  margin-left: 260px; /* Empujamos el contenido para respetar el sidebar */
+  width: calc(100% - 260px); /* Ancho restante exacto */
+  display: flex;
+  flex-direction: column;
+  transition: margin-left 0.3s ease, width 0.3s ease;
+}
+
+.view-wrapper {
+  padding: 20px 30px;
+  flex: 1;
+}
+
+/* --- RESPONSIVE (Móvil y Tablets) --- */
+@media (max-width: 992px) {
+  .sidebar-area {
+    transform: translateX(-100%); /* Ocultar sidebar por defecto */
+    box-shadow: none;
+  }
+  
+  .sidebar-area.open {
+    transform: translateX(0); /* Mostrar al activar */
+    box-shadow: 0 0 50px rgba(0,0,0,0.2); /* Sombra fuerte al abrir */
+  }
+
+  .main-content {
+    margin-left: 0 !important; /* Contenido ocupa todo */
+    width: 100% !important;
+  }
+
+  .mobile-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 99;
+    backdrop-filter: blur(2px);
+  }
+}
 </style>
