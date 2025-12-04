@@ -163,7 +163,8 @@ import api from '../../api/axios';
 import { useInventarioStore } from '../../stores/inventario';
 import { useCartStore } from '../../stores/cart';
 import { useAuthStore } from '../../stores/auth';
-import jsPDF from 'jspdf'; // Asegúrate de importar si generas PDF
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const inventario = useInventarioStore();
 const cartStore = useCartStore();
@@ -183,10 +184,11 @@ const tipoVenta = ref('CONTADO');
 const cuotas = ref(1);
 const mostrarPasarela = ref(false);
 const procesandoPago = ref(false);
+const ventaRealizada = ref(null); // Guardamos la venta para imprimir
 
 // Carga Inicial
 onMounted(async () => {
-  await inventario.fetchProductos(); // Ahora trae STOCK REAL
+  await inventario.fetchProductos(); 
   try {
     const { data } = await api.get('/categorias');
     categorias.value = data;
@@ -210,9 +212,7 @@ const buscarCliente = async () => {
         });
         
         if(datosExternos.success) {
-          // Preguntar si desea registrarlo
-          if(confirm(`Cliente encontrado en ${datosExternos.encontrado_en}: ${datosExternos.razon_social || datosExternos.nombre}. ¿Registrar?`)) {
-             // Guardar automáticamente
+          if(confirm(`Cliente encontrado: ${datosExternos.razon_social || datosExternos.nombre}. ¿Registrar?`)) {
              const nuevoCliente = {
                tipo_documento: tipoDoc.value,
                numero_documento: numDoc.value,
@@ -221,7 +221,6 @@ const buscarCliente = async () => {
                email: 'no-email@cliente.com', telefono: '-'
              };
              await api.post('/clientes', nuevoCliente);
-             // Recuperarlo de nuevo
              const resNew = await api.get('/clientes');
              cliente = resNew.data.find(c => c.numero_documento === numDoc.value);
           }
@@ -231,7 +230,7 @@ const buscarCliente = async () => {
 
     if(cliente) {
       clienteSeleccionado.value = cliente;
-      cartStore.cliente_id = cliente.id; // Vincular al carrito
+      cartStore.cliente_id = cliente.id;
     } 
 
   } finally { buscandoCliente.value = false; }
@@ -264,11 +263,8 @@ const agregarAlCarrito = (prod) => {
 // Proceso de Pago
 const iniciarPago = () => {
   if(!clienteSeleccionado.value) return;
-  
   mostrarPasarela.value = true;
   procesandoPago.value = true;
-
-  // Simulamos delay de banco (2 segundos)
   setTimeout(async () => {
      await confirmarVentaBackend();
      procesandoPago.value = false;
@@ -276,14 +272,13 @@ const iniciarPago = () => {
 };
 
 const confirmarVentaBackend = async () => {
-  // Preparar payload
   const itemsProcesados = cartStore.items.map(i => ({
       sku: i.sku, cantidad: i.cantidad, precio_unitario: i.precio_base, subtotal: i.precio_base * i.cantidad
   }));
 
   const payload = {
       cliente_id: clienteSeleccionado.value.id,
-      usuario_id: authStore.user?._id || 'CAJERO-01', // ID del usuario logueado
+      usuario_id: authStore.user?._id || 'CAJERO-01',
       items: itemsProcesados,
       tipo_pago: tipoVenta.value,
       total: cartStore.totalVenta,
@@ -291,8 +286,20 @@ const confirmarVentaBackend = async () => {
   };
 
   try {
-    await api.post('/ventas', payload);
-    // Aquí podrías llamar a generarBoletaPDF() si la tienes
+    const { data } = await api.post('/ventas', payload);
+    // Guardamos el ID para imprimir
+    ventaRealizada.value = {
+        id: data.id_venta,
+        fecha: new Date(),
+        cliente: clienteSeleccionado.value,
+        items: cartStore.items,
+        total: cartStore.totalVenta,
+        tipo_pago: tipoVenta.value
+    };
+    
+    // IMPRESIÓN AUTOMÁTICA AL CONFIRMAR
+    generarBoletaPDF();
+
   } catch (e) { 
     alert('Error guardando venta: ' + e.message); 
     mostrarPasarela.value = false;
@@ -301,8 +308,62 @@ const confirmarVentaBackend = async () => {
 
 const cerrarVenta = () => {
   mostrarPasarela.value = false;
-  cambiarCliente(); // Resetea todo para el siguiente
-  inventario.fetchProductos(); // Actualiza stock visual
+  cambiarCliente(); 
+  inventario.fetchProductos(); 
+};
+
+// --- GENERADOR DE BOLETA ---
+const generarBoletaPDF = () => {
+  const v = ventaRealizada.value;
+  if (!v) return;
+
+  const doc = new jsPDF({
+      orientation: 'portrait', unit: 'mm', format: [80, 200] // Formato Ticket Térmico (80mm)
+  });
+
+  doc.setFontSize(10);
+  doc.text("MONSTER STORE", 40, 10, { align: "center" });
+  doc.setFontSize(8);
+  doc.text("RUC: 20600000001", 40, 15, { align: "center" });
+  doc.text("Av. Tecnología 123 - Lima", 40, 19, { align: "center" });
+  
+  doc.text("------------------------------------------", 40, 23, { align: "center" });
+  
+  doc.text(`Ticket: #${v.id}`, 5, 28);
+  doc.text(`Fecha: ${v.fecha.toLocaleDateString()} ${v.fecha.toLocaleTimeString()}`, 5, 33);
+  doc.text(`Cliente: ${v.cliente.razon_social.substring(0, 25)}`, 5, 38);
+  doc.text(`${v.cliente.tipo_documento}: ${v.cliente.numero_documento}`, 5, 43);
+  
+  doc.text("------------------------------------------", 40, 48, { align: "center" });
+
+  // Tabla de Productos
+  let y = 53;
+  v.items.forEach(item => {
+      const nombre = item.nombre.substring(0, 18); // Cortar nombre largo
+      const linea = `${item.cantidad} x ${nombre}`;
+      const totalLinea = (item.precio_base * item.cantidad).toFixed(2);
+      
+      doc.text(linea, 5, y);
+      doc.text(totalLinea, 75, y, { align: "right" });
+      y += 5;
+  });
+
+  doc.text("------------------------------------------", 40, y, { align: "center" });
+  y += 5;
+
+  doc.setFontSize(10);
+  doc.text(`TOTAL: S/ ${v.total.toFixed(2)}`, 75, y, { align: "right" });
+  
+  y += 5;
+  doc.setFontSize(8);
+  doc.text(`Pago: ${v.tipo_pago}`, 5, y);
+
+  y += 10;
+  doc.text("¡Gracias por su compra!", 40, y, { align: "center" });
+
+  // Descargar o Abrir en nueva pestaña para imprimir
+  // doc.save(`Ticket_${v.id}.pdf`); // Descarga directa
+  window.open(doc.output('bloburl'), '_blank'); // Abre ventana de impresión
 };
 </script>
 

@@ -11,6 +11,7 @@ import LoginView from '../views/auth/LoginView.vue';
 import HomeView from '../views/public/HomeView.vue';
 import CatalogoView from '../views/public/CatalogoView.vue';
 import CarritoView from '../views/public/CarritoView.vue';
+import PortalPagosView from '../views/public/PagoCreditosView.vue';
 
 // --- Vistas Privadas (Admin) ---
 import VentasPosView from '../views/ventas/VentasPosView.vue';
@@ -43,7 +44,8 @@ const router = createRouter({
       children: [
         { path: '', redirect: '/catalogo' },
         { path: 'catalogo', name: 'catalogo-publico', component: CatalogoView },
-        { path: 'carrito', name: 'carrito', component: CarritoView }
+        { path: 'carrito', name: 'carrito', component: CarritoView },
+        { path: 'pagos', name: 'portal-pagos', component: PortalPagosView }
       ]
     },
 
