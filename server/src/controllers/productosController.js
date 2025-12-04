@@ -13,18 +13,17 @@ const schemaProducto = Joi.object({
 
 const crear = async (req, res) => {
     try {
-        // 1. Validar texto
-        const { error } = schemaProducto.validate(req.body);
-        if (error) return res.status(400).json({ error: error.details[0].message });
-
-        // 2. Pasar datos + archivo al servicio
-        // req.file viene gracias a Multer (que configuraremos en la ruta)
+        // req.body tiene los campos de texto
+        // req.file tiene la imagen
         const resultado = await productoService.crearProducto(req.body, req.file);
-        
         res.status(201).json(resultado);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, error: error.message });
+        console.error("🔥 Error creando producto:", error); // ESTO SALDRÁ EN TU TERMINAL
+        // Enviamos 400 para que el frontend sepa que algo salió mal con los datos
+        res.status(400).json({ 
+            error: true, 
+            message: error.message || 'Error al procesar la solicitud' 
+        });
     }
 };
 
