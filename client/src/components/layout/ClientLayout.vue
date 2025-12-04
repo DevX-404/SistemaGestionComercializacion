@@ -1,91 +1,50 @@
 <template>
-  <div class="client-layout">
-    <nav class="client-navbar">
-      <div class="container nav-container">
-        <h2 class="logo">Monster<span class="highlight">Store</span></h2>
-        <ul class="nav-links">
-          <li><router-link to="/">Inicio</router-link></li>
-          <li><router-link to="/catalogo">Catálogo</router-link></li>
-        </ul>
-        <router-link to="/carrito" class="nav-cart">
-          🛒 Carrito ({{ cartStore.items.length }})
-        </router-link>
+  <div class="public-layout">
+    <Navbar />
+    
+    <main class="main-content">
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </main>
+
+    <footer class="footer-pro">
+      <div class="footer-content">
+        <div class="brand">
+          <h3>Monster<span class="light">Store</span></h3>
+          <p>Tecnología que potencia tu mundo.</p>
+        </div>
+        <div class="links">
+          <a href="#">Términos</a>
+          <a href="#">Privacidad</a>
+          <a href="#">Soporte</a>
+        </div>
+        <div class="copy">© 2025 MonsterSys Inc.</div>
       </div>
-    </nav>
-
-    <router-view />
-
-    <footer class="client-footer">
-      <p>© 2024 MonsterStore - Todos los derechos reservados</p>
     </footer>
   </div>
 </template>
+
 <script setup>
-import { useCartStore } from '../../stores/cart';
-const cartStore = useCartStore();
+import Navbar from './Navbar.vue';
 </script>
+
 <style scoped>
-.client-layout {
-  background-color: #fff;
-  font-family: 'Poppins', sans-serif;
-}
+.public-layout { min-height: 100vh; display: flex; flex-direction: column; background-color: #f8f9fe; }
+.main-content { flex: 1; padding-top: 70px; /* Espacio para el navbar fijo */ }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
+.footer-pro { background: #172b4d; color: white; padding: 40px 20px; margin-top: auto; }
+.footer-content { max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+.brand h3 { margin: 0; font-size: 1.5rem; font-weight: 800; }
+.light { color: #11cdef; }
+.brand p { color: #8898aa; font-size: 0.9rem; margin-top: 5px; }
+.links a { color: white; margin-left: 20px; text-decoration: none; font-size: 0.9rem; opacity: 0.8; transition: 0.2s; }
+.links a:hover { opacity: 1; color: #11cdef; }
+.copy { width: 100%; text-align: center; margin-top: 30px; color: #525f7f; font-size: 0.8rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
 
-.client-navbar {
-  padding: 20px 0;
-  border-bottom: 1px solid #eee;
-}
-
-.nav-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.logo {
-  margin: 0;
-  color: #333;
-}
-
-.highlight {
-  color: var(--client-primary);
-}
-
-.nav-links {
-  list-style: none;
-  display: flex;
-  gap: 30px;
-  margin: 0;
-}
-
-.nav-links a {
-  text-decoration: none;
-  color: #555;
-  font-weight: 500;
-  transition: color 0.3s;
-}
-
-.nav-links a:hover,
-.router-link-active {
-  color: var(--client-primary);
-}
-
-.nav-cart {
-  font-weight: bold;
-  color: var(--client-primary);
-  cursor: pointer;
-}
-
-.client-footer {
-  background: #333;
-  color: #fff;
-  text-align: center;
-  padding: 20px 0;
-  margin-top: 50px;
-}
+/* Animación de vistas */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

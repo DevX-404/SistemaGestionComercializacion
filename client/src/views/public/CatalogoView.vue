@@ -1,71 +1,62 @@
 <template>
-  <div class="catalogo-container">
-    
-    <Transition name="slide-down">
-      <div v-if="notification.show" class="argon-alert" :class="notification.type">
-        <div class="alert-icon">
-          <span v-if="notification.type === 'success'">🛒</span>
-          <span v-if="notification.type === 'warning'">⚠️</span>
+  <div class="catalog-page fade-in">
+    <div class="container">
+      
+      <div class="mini-hero">
+        <h1>Tecnología <span class="highlight">Monstruosa</span></h1>
+        <p>Encuentra lo último en hardware y accesorios.</p>
+      </div>
+
+      <div class="catalog-toolbar">
+        <div class="search-box">
+           <span class="icon">🔍</span>
+           <input v-model="busqueda" placeholder="¿Qué estás buscando hoy?" />
         </div>
-        <div class="alert-content">
-            <h4 class="alert-heading">{{ getTitle(notification.type) }}</h4>
-            <p>{{ notification.message }}</p>
-        </div>
-        <div class="alert-actions" v-if="notification.type === 'success'">
-             <router-link to="/carrito" class="btn-alert-link">Ver Carrito →</router-link>
+
+        <div class="filter-scroll">
+           <button 
+             class="filter-pill" 
+             :class="{ active: filtroCat === 'Todas' }"
+             @click="filtroCat = 'Todas'"
+           >
+             Todas
+           </button>
+           <button 
+             v-for="cat in categorias" 
+             :key="cat._id" 
+             class="filter-pill"
+             :class="{ active: filtroCat === cat.nombre }"
+             @click="filtroCat = cat.nombre"
+           >
+             {{ cat.nombre }}
+           </button>
         </div>
       </div>
-    </Transition>
 
-    <transition name="fade" appear>
-        <div class="promo-banner">
-        <div class="banner-content">
-            <h1>🔥 Monster Tech</h1>
-            <p>Tecnología que asusta de lo buena que es.</p>
+      <div class="products-grid">
+        <div v-for="prod in productosFiltrados" :key="prod.sku" class="product-card">
+          <div class="card-img">
+             <img :src="prod.imagenes?.[0] ? `http://localhost:3000${prod.imagenes[0]}` : '/placeholder.png'">
+             <span class="stock-badge" v-if="prod.stock < 5 && prod.stock > 0">¡Quedan {{ prod.stock }}!</span>
+             <span class="stock-badge out" v-if="prod.stock <= 0">Agotado</span>
+          </div>
+          <div class="card-body">
+             <small>{{ prod.categoria }}</small>
+             <h3>{{ prod.nombre }}</h3>
+             <div class="price-action">
+                <span class="price">S/ {{ prod.precio_base.toFixed(2) }}</span>
+                <button class="btn-add" @click="agregar(prod)" :disabled="prod.stock <= 0">
+                   {{ prod.stock > 0 ? '+' : '🚫' }}
+                </button>
+             </div>
+          </div>
         </div>
-        </div>
-    </transition>
-
-    <div class="content-wrapper">
-      <aside class="filters">
-        <h3>Categorías</h3>
-        <ul>
-          <li v-for="cat in ['Todas', 'Tecnología', 'Gamer', 'Oficina', 'Hogar']" 
-              :key="cat"
-              :class="{ active: categoriaActiva === cat }" 
-              @click="categoriaActiva = cat">
-              {{ cat }}
-          </li>
-        </ul>
-      </aside>
-
-      <div class="grid-container">
-        <TransitionGroup name="list" tag="div" class="products-grid">
-            <div v-for="prod in productosFiltrados" :key="prod.sku" class="product-card">
-                <div class="img-wrapper">
-                    <img :src="prod.imagenes?.[0] ? `http://localhost:3000${prod.imagenes[0]}` : '/placeholder.png'" :alt="prod.nombre">
-                    
-                    <div class="overlay">
-                        <button class="btn-quick" @click="agregarAlCarrito(prod)">
-                           Añadir al Carrito +
-                        </button>
-                    </div>
-                </div>
-                <div class="info">
-                    <span class="category">{{ prod.specs?.categoria || 'General' }}</span>
-                    <h4>{{ prod.nombre }}</h4>
-                    <div class="price-row">
-                        <span class="price">S/ {{ prod.precio_base.toFixed(2) }}</span>
-                        <span v-if="prod.stock < 5" class="stock-badge">¡Quedan {{ prod.stock }}!</span>
-                    </div>
-                </div>
-            </div>
-        </TransitionGroup>
         
         <div v-if="productosFiltrados.length === 0" class="no-results">
-            No hay productos en esta categoría 🕸️
+           <p>No encontramos productos con esos filtros 😢</p>
         </div>
       </div>
+
     </div>
   </div>
 </template>
@@ -74,114 +65,86 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../../api/axios';
 import { useCartStore } from '../../stores/cart';
+import { useInventarioStore } from '../../stores/inventario';
 
-const cartStore = useCartStore();
-const productos = ref([]);
-const categoriaActiva = ref('Todas');
-const notification = ref({ show: false, message: '', type: 'success' });
+const inventario = useInventarioStore();
+const cart = useCartStore();
+const categorias = ref([]); // Aquí guardaremos las categorías de la BD
+const busqueda = ref('');
+const filtroCat = ref('Todas');
 
-// --- NOTIFICACIONES ---
-const showToast = (msg, type = 'success') => {
-    notification.value = { show: true, message: msg, type };
-    setTimeout(() => { notification.value.show = false; }, 3000);
+const cargar = async () => {
+  await inventario.fetchProductos();
+  try { 
+    // Llamamos al backend para traer categorías reales
+    const { data } = await api.get('/categorias'); 
+    // Filtramos solo las activas si tu backend devuelve todas
+    categorias.value = data.filter(c => c.estado === true); 
+  } catch(e){ console.error(e); }
 };
-const getTitle = (type) => type === 'success' ? '¡Agregado!' : 'Atención';
 
-// --- LÓGICA ---
-onMounted(async () => {
-  try {
-    const { data } = await api.get('/productos'); // Asegúrate que tu backend responde en /api/productos
-    productos.value = data;
-  } catch (error) { console.error(error); }
-});
+const productosFiltrados = computed(() => 
+  inventario.productos.filter(p => {
+    const matchText = p.nombre.toLowerCase().includes(busqueda.value.toLowerCase());
+    // Comparamos con la categoría guardada en el producto
+    const matchCat = filtroCat.value === 'Todas' || p.categoria === filtroCat.value;
+    // Solo mostrar activos
+    const matchEstado = p.estado === 'ACTIVO';
+    return matchText && matchCat && matchEstado;
+  })
+);
 
-const productosFiltrados = computed(() => {
-  if (categoriaActiva.value === 'Todas') return productos.value;
-  // Filtramos por la categoría guardada en MongoDB
-  return productos.value.filter(p => p.specs?.categoria === categoriaActiva.value || p.categoria === categoriaActiva.value);
-});
-
-const agregarAlCarrito = (prod) => {
-  // Usamos la acción del Store que ya creamos
-  const result = cartStore.agregarProducto(prod);
-  
-  // Manejo de respuesta del store (si retorna algo) o feedback manual
-  if (result?.success === false) {
-      showToast(result.message, 'warning');
-  } else {
-      showToast('Producto añadido al carrito', 'success');
+const agregar = (p) => {
+  cart.agregarProducto(p);
+  // Feedback visual simple
+  const btn = document.activeElement;
+  if(btn) {
+      btn.classList.add('clicked');
+      setTimeout(() => btn.classList.remove('clicked'), 200);
   }
 };
+
+onMounted(() => cargar());
 </script>
 
 <style scoped>
-/* --- ESTILOS DE NOTIFICACIÓN (Toasts) --- */
-.argon-alert {
-    position: fixed; top: 20px; right: 20px; z-index: 10000;
-    min-width: 300px; padding: 1rem; border-radius: 0.375rem;
-    color: #fff; display: flex; align-items: center; gap: 15px;
-    box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
-    animation: bounceIn 0.4s;
-}
-.argon-alert.success { background: linear-gradient(87deg, #2dce89 0, #2dcecc 100%); }
-.argon-alert.warning { background: linear-gradient(87deg, #fb6340 0, #fbb140 100%); }
+.catalog-page { padding-bottom: 60px; background: #f8f9fe; min-height: 100vh; }
+.container { max-width: 1100px; margin: 0 auto; padding: 20px; }
 
-.alert-icon { font-size: 1.5rem; }
-.alert-content h4 { margin: 0; font-size: 0.9rem; text-transform: uppercase; font-weight: 800; }
-.alert-content p { margin: 0; font-size: 0.9rem; opacity: 0.9; }
-.btn-alert-link { background: rgba(255,255,255,0.2); color: white; text-decoration: none; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; transition: 0.2s; margin-left: auto; }
-.btn-alert-link:hover { background: rgba(255,255,255,0.4); }
+.mini-hero { text-align: center; padding: 40px 0; color: #32325d; }
+.mini-hero h1 { font-size: 2.5rem; font-weight: 800; margin: 0; }
+.highlight { color: #5e72e4; }
 
-/* Animación Slide */
-.slide-down-enter-active, .slide-down-leave-active { transition: all 0.4s ease; }
-.slide-down-enter-from, .slide-down-leave-to { transform: translateY(-20px); opacity: 0; }
-@keyframes bounceIn { 0% { transform: scale(0.8); opacity: 0; } 60% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
+.catalog-toolbar { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; display: flex; flex-direction: column; gap: 15px; }
 
-/* --- RESTO DEL DISEÑO DEL CATÁLOGO --- */
-.catalogo-container { background-color: #f4f7f6; min-height: 100vh; font-family: 'Open Sans', sans-serif; }
+.search-box { display: flex; align-items: center; background: #f6f9fc; padding: 10px 20px; border-radius: 30px; }
+.search-box input { border: none; background: transparent; width: 100%; outline: none; font-size: 1rem; color: #32325d; margin-left: 10px; }
 
-.promo-banner { 
-    background: linear-gradient(150deg, #281483 15%, #8f6ed5 70%, #d782d9 94%);
-    color: white; padding: 80px 20px; text-align: center; margin-bottom: 40px; 
-    clip-path: polygon(0 0, 100% 0, 100% 85%, 0 100%);
-}
-.promo-banner h1 { font-size: 3rem; margin: 0; font-weight: 800; letter-spacing: -1px; }
-.promo-banner p { font-size: 1.2rem; opacity: 0.9; }
+.filter-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
+.filter-pill { white-space: nowrap; border: 1px solid #e9ecef; background: white; padding: 8px 20px; border-radius: 20px; cursor: pointer; color: #525f7f; font-weight: 600; transition: 0.2s; }
+.filter-pill:hover { background: #f6f9fc; }
+.filter-pill.active { background: #5e72e4; color: white; border-color: #5e72e4; box-shadow: 0 4px 6px rgba(94, 114, 228, 0.2); }
 
-.content-wrapper { max-width: 1200px; margin: 0 auto; display: flex; gap: 40px; padding: 0 20px; }
+.products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 25px; }
 
-.filters { width: 220px; flex-shrink: 0; }
-.filters h3 { margin-bottom: 15px; color: #32325d; font-size: 1.1rem; font-weight: 700; text-transform: uppercase; }
-.filters ul { list-style: none; padding: 0; background: white; border-radius: 0.375rem; overflow: hidden; box-shadow: 0 0 2rem 0 rgba(136, 152, 170, 0.15); }
-.filters li { padding: 12px 20px; cursor: pointer; transition: 0.2s; border-bottom: 1px solid #f6f9fc; color: #525f7f; font-weight: 600; font-size: 0.9rem; }
-.filters li:hover { background-color: #f6f9fc; color: #5e72e4; padding-left: 25px; }
-.filters li.active { background-color: #5e72e4; color: white; }
+.product-card { background: white; border-radius: 15px; overflow: hidden; transition: 0.3s; border: 1px solid rgba(0,0,0,0.03); }
+.product-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
 
-.grid-container { flex: 1; }
-.products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 25px; }
+.card-img { height: 180px; background: #fff; display: flex; align-items: center; justify-content: center; position: relative; padding: 20px; }
+.card-img img { max-height: 100%; max-width: 100%; object-fit: contain; }
+.stock-badge { position: absolute; top: 10px; left: 10px; background: #fb6340; color: white; font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; font-weight: bold; }
+.stock-badge.out { background: #8898aa; }
 
-.product-card { 
-    background: white; border-radius: 0.375rem; overflow: hidden; 
-    box-shadow: 0 0 2rem 0 rgba(136, 152, 170, 0.15); transition: all 0.3s ease; border: 0;
-}
-.product-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(50,50,93,.1), 0 5px 15px rgba(0,0,0,.07); }
+.card-body { padding: 20px; border-top: 1px solid #f6f9fc; }
+.card-body small { color: #8898aa; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+.card-body h3 { margin: 5px 0 15px; font-size: 1rem; color: #32325d; line-height: 1.4; height: 42px; overflow: hidden; }
 
-.img-wrapper { position: relative; height: 220px; display: flex; align-items: center; justify-content: center; padding: 20px; background: #fff; }
-.img-wrapper img { max-height: 100%; max-width: 100%; transition: 0.5s; }
-.product-card:hover .img-wrapper img { transform: scale(1.05); }
+.price-action { display: flex; justify-content: space-between; align-items: center; }
+.price { font-size: 1.3rem; font-weight: 800; color: #5e72e4; }
+.btn-add { width: 40px; height: 40px; border-radius: 50%; border: none; background: #11cdef; color: white; font-size: 1.2rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+.btn-add:hover { background: #0da5c0; transform: scale(1.1); }
+.btn-add.clicked { transform: scale(0.9); background: #2dce89; }
+.btn-add:disabled { background: #e9ecef; cursor: not-allowed; transform: none; color: #889; }
 
-.overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); opacity: 0; transition: 0.3s; display: flex; justify-content: center; align-items: center; }
-.product-card:hover .overlay { opacity: 1; }
-.btn-quick { background: #5e72e4; color: white; padding: 10px 20px; border-radius: 20px; border: none; font-weight: bold; cursor: pointer; transform: translateY(20px); transition: 0.3s; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
-.product-card:hover .btn-quick { transform: translateY(0); }
-
-.info { padding: 20px; }
-.category { font-size: 0.7rem; color: #8898aa; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
-.info h4 { margin: 5px 0 10px; font-size: 1.1rem; color: #32325d; font-weight: 600; }
-.price { font-size: 1.3rem; font-weight: 800; color: #2dce89; }
-.stock-badge { font-size: 0.7rem; background: #f5365c; color: white; padding: 2px 8px; border-radius: 10px; font-weight: bold; float: right; margin-top: 5px; text-transform: uppercase; }
-
-.no-results { text-align: center; padding: 50px; color: #8898aa; font-size: 1.2rem; grid-column: 1 / -1; }
-
-@media (max-width: 768px) { .content-wrapper { flex-direction: column; } .filters { width: 100%; } }
+.no-results { grid-column: 1 / -1; text-align: center; padding: 50px; color: #889; font-size: 1.2rem; }
 </style>

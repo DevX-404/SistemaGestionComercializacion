@@ -5,16 +5,14 @@ const UsuarioSchema = new mongoose.Schema({
     password: { type: String, required: true }, // Se guardará encriptada
     nombre_completo: String,
     email: String,
-    rol: { 
-        type: String, 
-        enum: ['ADMIN', 'VENDEDOR', 'ALMACEN'], 
-        default: 'VENDEDOR' 
-    },
+    rol: { type: String, enum: ['ADMIN', 'VENDEDOR', 'ALMACENERO'], default: 'VENDEDOR' },
+    
+    // --- NUEVO: LISTA DE ACCESOS ---
+    accesos: { type: [String], default: [] }, // Ej: ['dashboard', 'ventas', 'clientes']
     // Perfil flexible (Requisito: Perfiles)
     perfil: {
         avatar: String,
         tema: { type: String, default: 'dark' },
-        permisos: [String] // Ej: ['ver_reportes', 'anular_ventas']
     },
     estado: { type: String, default: 'ACTIVO', enum: ['ACTIVO', 'INACTIVO'] }
 }, {

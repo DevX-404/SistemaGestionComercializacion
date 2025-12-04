@@ -28,6 +28,20 @@ const crear = async (req, res) => {
     }
 };
 
+// NUEVO: ACTUALIZAR
+const actualizar = async (req, res) => {
+    try {
+        // req.params.sku trae el código del producto a editar
+        // req.body trae los datos nuevos
+        // req.file trae la imagen nueva (si hay)
+        const resultado = await productoService.actualizarProducto(req.params.sku, req.body, req.file);
+        res.json(resultado);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
 const listar = async (req, res) => {
     try {
         const lista = await productoService.listarTodo();
@@ -52,4 +66,4 @@ const reactivar = async (req, res) => {
     } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
-module.exports = { crear, listar, eliminar, reactivar };
+module.exports = { crear, listar, eliminar, reactivar, actualizar };

@@ -11,9 +11,9 @@ const verificarToken = (req, res, next) => {
 
     try {
         // 2. Verificar si es válido (Quitar la palabra 'Bearer ')
-        const tokenReal = token.split(" ")[1]; 
+        const tokenReal = token.split(" ")[1];
         const decoded = jwt.verify(tokenReal, JWT_SECRET);
-        
+
         // 3. Guardar datos del usuario en la petición para usarlos luego
         req.usuario = decoded;
         next(); // ¡Pase usted!
@@ -27,14 +27,15 @@ const verificarToken = (req, res, next) => {
 const verificarPermiso = (permisoRequerido) => {
     return (req, res, next) => {
         const { rol, perfil } = req.usuario; // Asumiendo que guardaste esto en el token
-        
+
         // Admin siempre pasa
+        // En authMiddleware.js
         if (rol === 'ADMIN') return next();
 
-        // Verificar si tiene el permiso en su lista
-        // Nota: Esto requiere que al firmar el token incluyas los permisos, 
-        // o que consultes la BD aquí. Por simplicidad, validamos solo ROL por ahora.
-        next();
+        if (req.usuario.perfil && req.usuario.perfil.permisos && req.usuario.perfil.permisos.includes(permisoRequerido)) {
+            return next();
+        }
+        return res.status(403).json({ message: 'No tienes permisos suficientes' });
     };
 };
 

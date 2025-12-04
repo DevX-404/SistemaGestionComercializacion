@@ -4,9 +4,9 @@ import axios from 'axios';
 export const useCartStore = defineStore('cart', {
     state: () => ({
         items: [],
-        cliente_id: 1, 
+        cliente_id: 1,
         tipoVenta: 'CONTADO',
-        cuotas: 1 
+        cuotas: 1
     }),
     getters: {
         subtotal: (state) => state.items.reduce((acc, item) => acc + (item.precio_base * item.cantidad), 0),
@@ -34,7 +34,17 @@ export const useCartStore = defineStore('cart', {
             this.cuotas = 1;
             this.tipoVenta = 'CONTADO';
         },
-        
+        disminuirCantidad(sku) {
+            const item = this.items.find(i => i.sku === sku);
+            if (item) {
+                item.cantidad--;
+                if (item.cantidad <= 0) {
+                    this.quitarProducto(sku);
+                }
+            }
+            this.guardarCarrito();
+        },
+
         // --- LA NUEVA FUNCIÓN QUE CONECTA CON EL BACKEND ---
         async procesarVenta() {
             if (this.items.length === 0) return alert("El carrito está vacío");
@@ -56,7 +66,7 @@ export const useCartStore = defineStore('cart', {
             try {
                 // Llamada al servidor (Asegúrate que tu backend corre en el 3000)
                 const response = await axios.post('http://localhost:3000/api/ventas', datosVenta);
-                
+
                 if (response.data.success) {
                     alert(`✅ Venta registrada con éxito! ID: ${response.data.id_venta}`);
                     this.vaciarCarrito();

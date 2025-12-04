@@ -4,9 +4,11 @@ import { createRouter, createWebHistory } from 'vue-router';
 import AdminLayout from '../components/layout/AdminLayout.vue';
 import ClientLayout from '../components/layout/ClientLayout.vue';
 
+// Vistas Auth
+import LoginView from '../views/auth/LoginView.vue';
+
 // --- Vistas Públicas ---
 import HomeView from '../views/public/HomeView.vue';
-import LoginView from '../views/auth/LoginView.vue';
 import CatalogoView from '../views/public/CatalogoView.vue';
 import CarritoView from '../views/public/CarritoView.vue';
 
@@ -27,15 +29,19 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     // RUTA RAÍZ (Login por defecto o Home)
-    { path: '/', redirect: '/login' }, 
+    {
+    path: '/login',
+    name: 'login',
+    component: LoginView,
+    meta: { requiresAuth: false }
+    },
 
     // ZONA PÚBLICA
     {
       path: '/',
       component: ClientLayout,
       children: [
-        { path: 'home', name: 'home', component: HomeView },
-        { path: 'login', name: 'login', component: LoginView },
+        { path: '', redirect: '/catalogo' },
         { path: 'catalogo', name: 'catalogo-publico', component: CatalogoView },
         { path: 'carrito', name: 'carrito', component: CarritoView }
       ]

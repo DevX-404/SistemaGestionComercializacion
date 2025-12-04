@@ -1,447 +1,428 @@
 <template>
-  <div class="checkout-wrapper">
-    
-    <Transition name="slide-down">
-      <div v-if="notification.show" class="argon-alert" :class="notification.type">
-        <div class="alert-icon">
-          <span v-if="notification.type === 'success'">✅</span>
-          <span v-if="notification.type === 'danger'">⛔</span>
-          <span v-if="notification.type === 'warning'">⚠️</span>
-          <span v-if="notification.type === 'info'">ℹ️</span>
-        </div>
-        <div class="alert-content">
-            <h4 class="alert-heading">{{ getTitle(notification.type) }}</h4>
-            <p>{{ notification.message }}</p>
-        </div>
-        <button class="close-btn" @click="notification.show = false">×</button>
-      </div>
-    </Transition>
-
+  <div class="cart-page fade-in">
     <div class="container">
-      <h1 class="page-title">🚀 Finalizar Compra</h1>
       
-      <div v-if="cart.items.length === 0" class="empty-state fade-in">
-          <div class="empty-icon">🛒</div>
-          <h2>Tu carrito está vacío</h2>
-          <p>Parece que aún no has agregado productos monstruosos.</p>
-          <router-link to="/catalogo" class="btn-back">Volver al Catálogo</router-link>
+      <div class="cart-header">
+        <h2>Tu Carrito de Compras</h2>
+        <span class="item-count">{{ cart.items.length }} productos</span>
       </div>
 
-      <div v-else class="checkout-grid">
+      <div class="cart-layout" v-if="cart.items.length > 0">
         
-        <div class="steps-container">
-            
-            <div class="step-card" :class="{ active: step === 1, done: step > 1 }">
-                <div class="step-header" @click="step = 1">
-                    <div class="step-num">1</div>
-                    <h3>Identificación del Cliente</h3>
+        <div class="items-list">
+          <div v-for="item in cart.items" :key="item.sku" class="cart-item">
+             <div class="item-image">
+                <img :src="item.imagenes?.[0] ? `http://localhost:3000${item.imagenes[0]}` : '/placeholder.png'">
+             </div>
+             <div class="item-details">
+                <h4>{{ item.nombre }}</h4>
+                <p class="sku">SKU: {{ item.sku }}</p>
+                <p class="unit-price">S/ {{ item.precio_base.toFixed(2) }}</p>
+             </div>
+             <div class="item-actions">
+                <div class="qty-control">
+                   <button @click="cart.disminuirCantidad(item.sku)" class="btn-qty">−</button>
+                   <input type="text" :value="item.cantidad" readonly>
+                   <button @click="cart.agregarProducto(item)" class="btn-qty">+</button>
                 </div>
-                <div class="step-body" v-if="step === 1">
-                    <div class="form-group search-group">
-                        <select v-model="tipoDoc" class="form-control compact argon-input">
-                            <option value="DNI">DNI</option>
-                            <option value="RUC">RUC</option>
-                        </select>
-                        <input v-model="numDoc" type="text" class="form-control argon-input" 
-                               :class="{'is-invalid': errors.numDoc}"
-                               placeholder="Nro Documento" maxlength="11">
-                        <button @click="buscarClienteApi" class="btn-dark" :disabled="buscando">
-                            {{ buscando ? '...' : '🔍' }}
-                        </button>
-                    </div>
-                    
-                    <div v-if="clienteNombre" class="client-result fade-in">
-                        <div class="form-group">
-                            <label class="argon-label">Cliente / Razón Social</label>
-                            <input v-model="clienteNombre" type="text" class="form-control argon-input" readonly>
-                        </div>
-                        <div class="form-group">
-                            <label class="argon-label">Dirección de Envío</label>
-                            <input v-model="clienteDireccion" type="text" class="form-control argon-input" placeholder="Ingrese dirección exacta">
-                        </div>
-                        <button class="btn-next" @click="step = 2">Continuar al Pago 👉</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="step-card" :class="{ active: step === 2 }">
-                <div class="step-header">
-                    <div class="step-num">2</div>
-                    <h3>Método de Pago</h3>
-                </div>
-                <div class="step-body" v-if="step === 2">
-                    
-                    <div class="payment-tabs">
-                        <button :class="{active: metodoPago === 'TARJETA'}" @click="metodoPago = 'TARJETA'">💳 Tarjeta</button>
-                        <button :class="{active: metodoPago === 'CREDITO'}" @click="metodoPago = 'CREDITO'">🏦 Crédito</button>
-                    </div>
-
-                    <div v-if="metodoPago === 'TARJETA'" class="card-simulator">
-                        <div class="flip-container" :class="{ flipped: isFlipped }">
-                            <div class="flipper">
-                                <div class="front">
-                                    <div class="chip"></div>
-                                    <div class="card-number">{{ cardForm.numero || '•••• •••• •••• ••••' }}</div>
-                                    <div class="card-holder">{{ cardForm.nombre || 'NOMBRE TITULAR' }}</div>
-                                    <div class="card-expiry">{{ cardForm.exp || 'MM/YY' }}</div>
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" class="logo-visa">
-                                </div>
-                                <div class="back">
-                                    <div class="strip"></div>
-                                    <div class="cvv-box">{{ cardForm.cvc || '***' }}</div>
-                                    <p class="cvv-label">CVV</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card-form-inputs">
-                            <input v-model="cardForm.numero" type="text" placeholder="Número de Tarjeta" maxlength="19" class="form-control argon-input">
-                            <input v-model="cardForm.nombre" type="text" placeholder="Nombre en la tarjeta" class="form-control argon-input">
-                            <div class="row">
-                                <input v-model="cardForm.exp" type="text" placeholder="MM/YY" class="form-control argon-input">
-                                <input v-model="cardForm.cvc" type="text" placeholder="CVV" class="form-control argon-input" 
-                                    @focus="isFlipped = true" @blur="isFlipped = false" maxlength="3">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div v-if="metodoPago === 'CREDITO'" class="credit-options">
-                        <p>Seleccione sus cuotas:</p>
-                        <div class="cuotas-grid">
-                            <div v-for="c in [1, 3, 6, 12]" :key="c" 
-                                 class="cuota-card" :class="{selected: cuotas === c}" @click="cuotas = c">
-                                <strong>{{ c }}x</strong>
-                                <small>{{ c === 1 ? 'Sin interés' : (c*1.5) + '% interés' }}</small>
-                            </div>
-                        </div>
-                        <div class="total-projection">
-                            Pagará: <strong>S/ {{ calcularCuota() }}</strong> mensuales
-                        </div>
-                    </div>
-
-                    <button @click="procesarCompra" class="btn-pay-final" :disabled="procesando">
-                        {{ procesando ? 'Procesando...' : `PAGAR S/ ${cart.totalVenta.toFixed(2)}` }}
-                    </button>
-
-                </div>
-            </div>
-
+                <div class="item-subtotal">S/ {{ (item.precio_base * item.cantidad).toFixed(2) }}</div>
+                <button @click="cart.quitarProducto(item.sku)" class="btn-trash">🗑️</button>
+             </div>
+          </div>
         </div>
 
-        <div class="order-summary">
-            <h3>Tu Pedido</h3>
-            <div class="summary-items">
-                <div v-for="item in cart.items" :key="item.sku" class="mini-item">
-                    <img :src="item.imagenes?.[0] ? `http://localhost:3000${item.imagenes[0]}` : '/placeholder.png'">
-                    
-                    <div class="item-details">
-                        <p class="mini-name">{{ item.nombre }}</p>
-                        <p class="mini-sku">SKU: {{ item.sku }}</p>
-                        
-                        <div class="qty-controls">
-                            <button class="qty-btn" @click="restarItem(item)">-</button>
-                            <span class="qty-val">{{ item.cantidad }}</span>
-                            <button class="qty-btn" @click="sumarItem(item)">+</button>
-                        </div>
-                    </div>
-                    
-                    <div class="item-right">
-                         <span class="mini-price">S/ {{ (item.precio_base * item.cantidad).toFixed(2) }}</span>
-                         <button class="btn-trash" @click="eliminarItem(item.sku)" title="Eliminar">🗑️</button>
-                    </div>
-                </div>
-            </div>
-            <div class="summary-total">
-                <div class="row"><span>Subtotal:</span> <span>S/ {{ cart.subtotal.toFixed(2) }}</span></div>
-                <div class="row"><span>IGV (18%):</span> <span>S/ {{ cart.igv.toFixed(2) }}</span></div>
-                <div class="row final"><span>TOTAL:</span> <span>S/ {{ cart.totalVenta.toFixed(2) }}</span></div>
-            </div>
+        <div class="checkout-panel">
+           <div class="summary-card">
+              <h3>Resumen del Pedido</h3>
+              <div class="summary-row"><span>Subtotal</span> <span>S/ {{ cart.subtotal.toFixed(2) }}</span></div>
+              <div class="summary-row"><span>IGV (18%)</span> <span>S/ {{ cart.igv.toFixed(2) }}</span></div>
+              <div class="divider"></div>
+              <div class="summary-row total"><span>Total</span> <span>S/ {{ cart.totalVenta.toFixed(2) }}</span></div>
+
+              <button class="btn-checkout" @click="iniciarCheckout">
+                 INICIAR PAGO 🔒
+              </button>
+              <router-link to="/catalogo" class="continue-link">Seguir comprando</router-link>
+           </div>
         </div>
 
       </div>
+
+      <div v-else class="empty-cart">
+         <div class="icon">🛒</div>
+         <h2>Tu carrito está vacío</h2>
+         <router-link to="/catalogo" class="btn-start">Ir a la Tienda</router-link>
+      </div>
+
     </div>
+
+    <transition name="modal-fade">
+      <div v-if="step === 1" class="modal-backdrop">
+         <div class="modal-card slide-in-up">
+            <div class="modal-header">
+               <h4>1. Identifícate</h4>
+               <button class="close-btn" @click="step = 0">×</button>
+            </div>
+            <div class="modal-body">
+               <p class="text-muted">Ingresa tu documento para continuar con la compra.</p>
+               
+               <div class="search-row">
+                  <select v-model="clienteForm.tipo_documento" class="input-styled w-auto">
+                     <option value="DNI">DNI</option>
+                     <option value="RUC">RUC</option>
+                  </select>
+                  <input v-model="clienteForm.numero_documento" placeholder="Nro. Documento" class="input-styled flex-1" @keyup.enter="validarCliente">
+                  <button class="btn-search" @click="validarCliente" :disabled="cargando">
+                     {{ cargando ? '...' : '🔍' }}
+                  </button>
+               </div>
+
+               <div v-if="clienteEncontrado" class="client-details-form fade-in">
+                  <div class="form-group">
+                     <label>Nombre / Razón Social</label>
+                     <input v-model="clienteForm.razon_social" class="input-styled filled" readonly>
+                  </div>
+                  <div class="form-group">
+                     <label>Dirección de Envío</label>
+                     <input v-model="clienteForm.direccion" class="input-styled filled">
+                  </div>
+                  <div class="form-group">
+                     <label>Correo Electrónico (Para envío de boleta)</label>
+                     <input v-model="clienteForm.email" class="input-styled" placeholder="ejemplo@correo.com">
+                  </div>
+               </div>
+            </div>
+            <div class="modal-footer">
+               <button class="btn-primary full-width" @click="irAlPago" :disabled="!clienteEncontrado">
+                  Continuar al Pago ➔
+               </button>
+            </div>
+         </div>
+      </div>
+    </transition>
+
+    <transition name="modal-fade">
+      <div v-if="step === 2" class="modal-backdrop">
+         <div class="modal-card slide-in-up modal-lg">
+            <div class="modal-header bg-dark text-white">
+               <h4>2. Pasarela de Pago Segura</h4>
+               <button class="close-btn white" @click="step = 1">×</button>
+            </div>
+            
+            <div class="gateway-body">
+               
+               <div class="payment-methods">
+                  <h5 class="section-title">Elige método de pago</h5>
+                  
+                  <label class="method-card" :class="{ active: metodoPago === 'CONTADO' }">
+                     <input type="radio" v-model="metodoPago" value="CONTADO" hidden>
+                     <span class="icon">💵</span>
+                     <div class="text">
+                        <strong>Contado / Débito</strong>
+                        <small>Yape, Plin o Tarjeta Débito</small>
+                     </div>
+                  </label>
+
+                  <label class="method-card" :class="{ active: metodoPago === 'CREDITO' }">
+                     <input type="radio" v-model="metodoPago" value="CREDITO" hidden>
+                     <span class="icon">💳</span>
+                     <div class="text">
+                        <strong>Tarjeta de Crédito</strong>
+                        <small>Paga en cuotas</small>
+                     </div>
+                  </label>
+               </div>
+
+               <div class="card-details">
+                  <div class="card-visual">
+                     <div class="chip"></div>
+                     <div class="number">•••• •••• •••• 4242</div>
+                     <div class="name">{{ clienteForm.razon_social || 'NOMBRE TITULAR' }}</div>
+                     <div class="logo-visa">VISA</div>
+                  </div>
+
+                  <div class="form-grid">
+                      <div v-if="metodoPago === 'CREDITO'" class="form-group full">
+                         <label>Número de Cuotas</label>
+                         <select v-model="cuotas" class="input-styled">
+                            <option :value="1">Sin cuotas (Directo)</option>
+                            <option :value="3">3 Cuotas sin interés</option>
+                            <option :value="6">6 Cuotas</option>
+                            <option :value="12">12 Cuotas</option>
+                         </select>
+                      </div>
+
+                      <div v-if="metodoPago === 'CONTADO'" class="yape-info fade-in">
+                         <p>Escanea el QR con Yape o Plin</p>
+                         <div class="qr-placeholder">QR</div>
+                      </div>
+                  </div>
+
+                  <div class="total-pay-row">
+                     <span>Total a Pagar:</span>
+                     <strong>S/ {{ cart.totalVenta.toFixed(2) }}</strong>
+                  </div>
+               </div>
+            </div>
+
+            <div class="modal-footer">
+               <button class="btn-success full-width" @click="procesarCompraFinal" :disabled="procesando">
+                  <span v-if="!procesando">CONFIRMAR PAGO ✅</span>
+                  <span v-else>Procesando... ⏳</span>
+               </button>
+               <div class="secure-seal">🔒 Transacción encriptada de 256-bits</div>
+            </div>
+         </div>
+      </div>
+    </transition>
+
   </div>
 </template>
 
 <script setup>
 import { ref, reactive } from 'vue';
 import { useCartStore } from '../../stores/cart';
+import { useRouter } from 'vue-router';
 import api from '../../api/axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const cart = useCartStore();
-const step = ref(1);
+const router = useRouter();
 
-// Datos UI
-const buscando = ref(false);
+// Estados
+const step = ref(0); // 0: Carrito, 1: Identidad, 2: Pago
+const cargando = ref(false);
 const procesando = ref(false);
-const notification = ref({ show: false, message: '', type: 'success' });
-const errors = reactive({ numDoc: false });
-
-// Datos Formulario
-const tipoDoc = ref('DNI');
-const numDoc = ref('');
-const clienteNombre = ref('');
-const clienteDireccion = ref('');
-const metodoPago = ref('TARJETA');
+const clienteEncontrado = ref(false);
+const metodoPago = ref('CONTADO');
 const cuotas = ref(1);
-const cardForm = ref({ numero: '', nombre: '', exp: '', cvc: '' });
-const isFlipped = ref(false);
 
-// --- NOTIFICACIONES ---
-const showToast = (msg, type = 'success') => {
-    notification.value = { show: true, message: msg, type };
-    setTimeout(() => { notification.value.show = false; }, 4000);
-};
-const getTitle = (type) => {
-    if(type === 'success') return '¡Excelente!';
-    if(type === 'danger') return '¡Error!';
-    if(type === 'warning') return 'Advertencia';
-    return 'Información';
-};
+const clienteForm = reactive({
+    id: null, // Si existe en BD
+    tipo_documento: 'DNI',
+    numero_documento: '',
+    razon_social: '',
+    direccion: '',
+    email: '',
+    telefono: '999999999'
+});
 
-// --- CONTROL CARRITO ---
-const sumarItem = (item) => {
-    const res = cart.agregarProducto(item);
-    if (!res.success) showToast(res.message, 'warning');
-};
-const restarItem = (item) => cart.disminuirCantidad(item.sku);
-const eliminarItem = (sku) => {
-    cart.quitarProducto(sku);
-    showToast('Producto eliminado', 'info');
-};
+// --- PASO 1: VALIDAR IDENTIDAD ---
+const iniciarCheckout = () => step.value = 1;
 
-// --- LÓGICA NEGOCIO ---
-const buscarClienteApi = async () => {
-    if (!numDoc.value) {
-        errors.numDoc = true;
-        return showToast('Ingrese documento', 'warning');
-    }
-    errors.numDoc = false;
-    buscando.value = true;
+const validarCliente = async () => {
+    if(!clienteForm.numero_documento) return alert("Ingrese documento");
+    cargando.value = true;
+    clienteEncontrado.value = false;
+
     try {
-        const { data } = await api.post('/clientes/consulta-api', { tipo: tipoDoc.value, numero: numDoc.value });
-        if(data) {
-            clienteNombre.value = data.nombre || data.razon_social;
-            clienteDireccion.value = data.direccion || '';
-            showToast('Cliente encontrado', 'success');
+        // CORRECCIÓN PROFESIONAL:
+        // No descargamos todos los clientes (eso daba 403).
+        // Consultamos directamente al endpoint que busca en BD Local y API Externa a la vez.
+        
+        const { data: resultado } = await api.post('/clientes/consulta-api', {
+            tipo: clienteForm.tipo_documento,
+            numero: clienteForm.numero_documento
+        });
+
+        if (resultado.success || resultado.encontrado_en) {
+            // Si existe (ya sea en BD local o RENIEC/SUNAT)
+            clienteForm.id = resultado.id || null; // Si viene de BD local, tendrá ID
+            clienteForm.razon_social = resultado.razon_social || resultado.nombre;
+            clienteForm.direccion = resultado.direccion || '';
+            clienteForm.email = resultado.email || '';
+            clienteForm.telefono = resultado.telefono || '';
+            
+            clienteEncontrado.value = true;
+        } else {
+            alert("Documento no encontrado.");
         }
-    } catch (error) {
-        showToast('No encontrado en padrón oficial', 'warning');
-    } finally { buscando.value = false; }
+
+    } catch(e) {
+        console.error(e);
+        // Si el error es 404 es que no existe, si es otro, es error de red
+        if (e.response && e.response.status === 404) {
+             alert("Documento no encontrado en ninguna base de datos.");
+        } else {
+             alert("Error de conexión o documento inválido.");
+        }
+    } finally {
+        cargando.value = false;
+    }
 };
 
-const calcularCuota = () => {
-    let interes = cuotas.value === 1 ? 0 : (cuotas.value * 1.5) / 100;
-    return ((cart.totalVenta * (1 + interes)) / cuotas.value).toFixed(2);
+const irAlPago = () => {
+    if(!clienteForm.razon_social) return alert("Datos incompletos");
+    step.value = 2;
 };
 
-// --- PDF ---
-const generarBoletaPDF = (idVenta) => {
-    const doc = new jsPDF();
-    doc.setFontSize(18); doc.setTextColor(40);
-    doc.text("MONSTER STORE S.A.C.", 105, 20, null, null, "center");
-    doc.setFontSize(10);
-    doc.text(`Orden: ${idVenta} - Fecha: ${new Date().toLocaleDateString()}`, 105, 28, null, null, "center");
-    doc.text(`Cliente: ${clienteNombre.value} | DOC: ${numDoc.value}`, 15, 45);
-
-    const body = cart.items.map(i => [i.cantidad, i.nombre, `S/ ${i.precio_base}`, `S/ ${(i.precio_base*i.cantidad).toFixed(2)}`]);
-    autoTable(doc, { startY: 55, head: [['Cant', 'Item', 'P.Unit', 'Total']], body });
-    
-    doc.setFontSize(12); doc.setTextColor(255, 0, 0);
-    doc.text(`Total: S/ ${cart.totalVenta.toFixed(2)}`, 140, doc.lastAutoTable.finalY + 10);
-    doc.save(`Boleta_${idVenta}.pdf`);
-};
-
-// --- PROCESAR COMPRA (CORREGIDO DEFINITIVO) ---
-const procesarCompra = async () => {
-    if (!clienteNombre.value) return showToast('Identifíquese primero (Paso 1)', 'warning');
-    
+// --- PASO 2: PROCESAR PAGO ---
+const procesarCompraFinal = async () => {
     procesando.value = true;
     try {
-        let clienteId = 1; // ID por defecto
-
-        // 1. Intentamos registrar al cliente (Si falla por duplicado, no importa)
-        try {
-            await api.post('/clientes', {
-                tipo_documento: tipoDoc.value, 
-                numero_documento: numDoc.value,
-                razon_social: clienteNombre.value, 
-                direccion: clienteDireccion.value,
-                email: 'web@cliente.com', 
-                telefono: '999'
+        // 1. Si el cliente es nuevo (no tiene ID), lo creamos primero
+        let idClienteFinal = clienteForm.id;
+        
+        if (!idClienteFinal) {
+            const resNuevo = await api.post('/clientes', {
+                tipo_documento: clienteForm.tipo_documento,
+                numero_documento: clienteForm.numero_documento,
+                razon_social: clienteForm.razon_social,
+                direccion: clienteForm.direccion,
+                email: clienteForm.email || 'cliente@web.com',
+                telefono: clienteForm.telefono
             });
-        } catch (e) { 
-            console.log("Cliente ya existe, procedemos a buscar su ID...");
+            // El backend suele devolver { message: '...', id: ... } o algo similar
+            // Si tu backend no devuelve el ID al crear, hacemos una búsqueda rápida
+            const { data: clientesRefresh } = await api.get('/clientes');
+            const creado = clientesRefresh.find(c => c.numero_documento === clienteForm.numero_documento);
+            idClienteFinal = creado.id;
         }
 
-        // 2. Buscamos su ID real en la BD
-        try {
-            const res = await api.get('/clientes');
-            // Buscamos el cliente que coincida con el documento ingresado
-            const encontrado = res.data.find(c => c.numero_documento === numDoc.value);
-            if (encontrado) {
-                clienteId = encontrado.id;
-            } else {
-                console.warn("Cliente no encontrado en BD, usaremos ID genérico (1)");
-            }
-        } catch (e) { console.error("Error recuperando ID cliente", e); }
-
-        // 3. Preparamos los items para que el Backend los entienda
-        // AQUÍ ESTABA EL ERROR: Mapeamos 'precio_base' a 'precio_unitario'
-        const itemsProcesados = cart.items.map(item => ({
-            sku: item.sku,
-            cantidad: item.cantidad,
-            precio_unitario: item.precio_base, // <--- ¡LA CLAVE!
-            subtotal: item.precio_base * item.cantidad
-        }));
-
+        // 2. Preparar Payload de Venta
         const payload = {
-            cliente_id: clienteId, 
-            usuario_id: 'WEB-USER', 
-            items: itemsProcesados, // <--- Enviamos los items corregidos
-            tipo_pago: metodoPago.value === 'CREDITO' ? 'CREDITO' : 'CONTADO', 
+            cliente_id: idClienteFinal,
+            usuario_id: 'WEB-USER', // Usuario genérico para ventas web
+            items: cart.items.map(item => ({
+                sku: item.sku,
+                cantidad: item.cantidad,
+                precio_unitario: item.precio_base, // CRUCIAL
+                subtotal: item.precio_base * item.cantidad
+            })),
+            tipo_pago: metodoPago.value, // CONTADO o CREDITO
             total: cart.totalVenta,
             cuotas: metodoPago.value === 'CREDITO' ? cuotas.value : 1
         };
-        
-        // Enviamos la venta
-        const { data } = await api.post('/ventas', payload);
-        
-        // Éxito
-        showToast(`¡Compra Exitosa! ID: ${data.venta_id || data.id_venta}`, 'success');
-        generarBoletaPDF(data.venta_id || data.id_venta);
 
-        setTimeout(() => {
-            cart.vaciarCarrito();
-            window.location.href = '/catalogo';
-        }, 2500);
+        // 3. Enviar Venta
+        const { data } = await api.post('/ventas', payload);
+
+        // 4. Éxito y PDF
+        generarBoleta(data.id_venta || Date.now());
+        alert('¡Compra exitosa! Tu boleta se está descargando.');
+        
+        cart.vaciarCarrito();
+        router.push('/catalogo');
 
     } catch (error) {
         console.error(error);
-        // Mostramos el mensaje exacto que devuelve el backend
-        const mensajeError = error.response?.data?.mensaje || error.response?.data?.error || error.message;
-        showToast("Error: " + mensajeError, 'danger');
-    } finally { 
-        procesando.value = false; 
+        alert('Error procesando la venta: ' + (error.response?.data?.mensaje || error.message));
+    } finally {
+        procesando.value = false;
     }
+};
+
+// --- GENERADOR PDF ---
+const generarBoleta = (idVenta) => {
+    const doc = new jsPDF();
+    doc.setFontSize(16); doc.text("MONSTER STORE - Comprobante Electrónico", 105, 20, null, null, "center");
+    doc.setFontSize(10); doc.text(`Venta Web #${idVenta}`, 105, 28, null, null, "center");
+    
+    doc.text(`Cliente: ${clienteForm.razon_social}`, 15, 40);
+    doc.text(`DOC: ${clienteForm.numero_documento}`, 15, 46);
+    doc.text(`Método: ${metodoPago.value} (${metodoPago.value === 'CREDITO' ? cuotas.value + ' cuotas' : 'Directo'})`, 15, 52);
+
+    const body = cart.items.map(i => [i.cantidad, i.nombre, `S/ ${i.precio_base}`, `S/ ${(i.precio_base*i.cantidad).toFixed(2)}`]);
+    
+    autoTable(doc, { 
+        startY: 60, 
+        head: [['Cant', 'Producto', 'P.Unit', 'Total']], 
+        body: body,
+        theme: 'grid',
+        headStyles: { fillColor: [94, 114, 228] }
+    });
+
+    doc.setFontSize(12);
+    doc.text(`TOTAL PAGADO: S/ ${cart.totalVenta.toFixed(2)}`, 140, doc.lastAutoTable.finalY + 15);
+    doc.save(`Boleta_Venta_${idVenta}.pdf`);
 };
 </script>
 
 <style scoped>
-/* GENERAL */
-.checkout-wrapper { background: #f8f9fe; min-height: 100vh; padding: 40px 20px; font-family: 'Open Sans', sans-serif; }
-.container { max-width: 1150px; margin: 0 auto; }
-.page-title { text-align: center; margin-bottom: 40px; color: #32325d; font-weight: 700; letter-spacing: -0.5px; }
-
-/* --- ARGON ALERTS (Banner Flotante) --- */
-.argon-alert {
-    position: fixed; top: 20px; right: 20px; z-index: 10000;
-    min-width: 350px; padding: 1rem; border-radius: 0.375rem;
-    color: #fff; display: flex; align-items: flex-start;
-    box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
-}
-.argon-alert.success { background: linear-gradient(87deg, #2dce89 0, #2dcecc 100%); }
-.argon-alert.danger { background: linear-gradient(87deg, #f5365c 0, #f56036 100%); }
-.argon-alert.warning { background: linear-gradient(87deg, #fb6340 0, #fbb140 100%); }
-.argon-alert.info { background: linear-gradient(87deg, #11cdef 0, #1171ef 100%); }
-
-.alert-icon { font-size: 1.5rem; margin-right: 1rem; }
-.alert-content h4 { margin: 0; font-size: 0.9rem; text-transform: uppercase; font-weight: 700; opacity: 0.9; }
-.alert-content p { margin: 2px 0 0; font-size: 0.9rem; }
-.close-btn { margin-left: auto; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; opacity: 0.7; }
-.close-btn:hover { opacity: 1; }
-
-/* ANIMACIONES */
-.slide-down-enter-active, .slide-down-leave-active { transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
-.slide-down-enter-from, .slide-down-leave-to { transform: translateY(-50px) scale(0.9); opacity: 0; }
-.fade-in { animation: fadeIn 0.5s; }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-/* INPUTS ARGON */
-.argon-label { font-size: 0.85rem; font-weight: 600; color: #525f7f; margin-bottom: 0.5rem; display: block; }
-.argon-input {
-    border: 1px solid #cad1d7; border-radius: 0.375rem; background-color: #fff;
-    box-shadow: 0 1px 3px rgba(50, 50, 93, 0.15), 0 1px 0 rgba(0, 0, 0, 0.02);
-    transition: all 0.2s; padding: 0.625rem 0.75rem; width: 100%; box-sizing: border-box; color: #8898aa;
-}
-.argon-input:focus { border-color: #5e72e4; box-shadow: 0 4px 6px rgba(50, 50, 93, 0.11); outline: none; color: #32325d; }
-.is-invalid { border-color: #f5365c; }
-
-/* LAYOUT */
-.grid-layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 30px; }
-.steps-container { display: flex; flex-direction: column; gap: 20px; }
-
-/* STEPS CARD */
-.step-card { background: white; border-radius: 0.375rem; box-shadow: 0 0 2rem 0 rgba(136, 152, 170, 0.15); overflow: hidden; transition: 0.3s; border: 1px solid rgba(0,0,0,.05); opacity: 0.7; }
-.step-card.active { opacity: 1; transform: scale(1.01); border-color: #5e72e4; }
-.step-header { display: flex; align-items: center; padding: 1.25rem; cursor: pointer; background: #fff; border-bottom: 1px solid #f0f0f0; }
-.step-num { width: 30px; height: 30px; background: #e9ecef; color: #8898aa; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; margin-right: 1rem; }
-.active .step-num { background: #5e72e4; color: white; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
-.step-body { padding: 1.5rem; }
-
-/* RESUMEN PEDIDO */
-.order-summary { background: white; padding: 1.5rem; border-radius: 0.375rem; box-shadow: 0 0 2rem 0 rgba(136, 152, 170, 0.15); border: 1px solid rgba(0,0,0,.05); height: fit-content; }
-.summary-items { max-height: 400px; overflow-y: auto; }
-.mini-item { display: flex; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px dashed #e9ecef; }
-.mini-item img { width: 60px; height: 60px; object-fit: cover; border-radius: 0.375rem; margin-right: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+/* ESTILOS BASE CARRITO (Mantener los que tenías o usar estos mejorados) */
+.cart-page { padding: 40px 20px; background: #f8f9fe; min-height: 100vh; }
+.container { max-width: 1100px; margin: 0 auto; }
+.cart-header { display: flex; align-items: baseline; gap: 15px; margin-bottom: 30px; }
+.cart-header h2 { margin: 0; color: #32325d; font-weight: 800; }
+.item-count { color: #8898aa; font-weight: 600; }
+.cart-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
+.items-list { background: white; border-radius: 15px; padding: 0; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+.cart-item { display: flex; align-items: center; padding: 20px; border-bottom: 1px solid #f6f9fc; }
+.item-image { width: 80px; height: 80px; background: #f8f9fe; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 20px; }
+.item-image img { max-width: 80%; max-height: 80%; }
 .item-details { flex: 1; }
-.mini-name { font-weight: 600; color: #32325d; font-size: 0.9rem; margin: 0 0 5px; }
-.mini-sku { font-size: 0.75rem; color: #8898aa; margin: 0; }
+.item-details h4 { margin: 0 0 5px; color: #32325d; font-size: 1rem; }
+.sku { margin: 0; color: #8898aa; font-size: 0.75rem; font-family: monospace; }
+.unit-price { color: #525f7f; font-weight: 600; margin-top: 5px; font-size: 0.9rem; }
+.item-actions { display: flex; align-items: center; gap: 20px; }
+.qty-control { display: flex; align-items: center; border: 1px solid #dee2e6; border-radius: 20px; overflow: hidden; }
+.btn-qty { background: white; border: none; width: 30px; height: 30px; cursor: pointer; font-weight: bold; color: #5e72e4; transition: 0.2s; }
+.btn-qty:hover { background: #f6f9fc; }
+.qty-control input { width: 30px; border: none; text-align: center; font-weight: bold; color: #32325d; outline: none; }
+.item-subtotal { font-weight: 800; color: #32325d; width: 80px; text-align: right; }
+.btn-trash { background: none; border: none; color: #f5365c; cursor: pointer; font-size: 1.1rem; margin-left: 10px; }
+.checkout-panel { position: sticky; top: 90px; }
+.summary-card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 15px 35px rgba(50,50,93,0.1), 0 5px 15px rgba(0,0,0,0.07); }
+.summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; color: #525f7f; font-size: 0.9rem; }
+.summary-row.total { font-size: 1.3rem; font-weight: 800; color: #32325d; margin-bottom: 25px; margin-top: 15px; }
+.divider { border-top: 1px dashed #e9ecef; margin: 15px 0; }
+.btn-checkout { width: 100%; background: linear-gradient(87deg, #2dce89 0, #2dcecc 100%); color: white; border: none; padding: 15px; border-radius: 8px; font-weight: 800; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 6px rgba(50,50,93,.11); letter-spacing: 1px; }
+.btn-checkout:hover { transform: translateY(-2px); box-shadow: 0 7px 14px rgba(50,50,93,.1); }
+.continue-link { display: block; text-align: center; margin-top: 15px; color: #5e72e4; text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+.empty-cart { text-align: center; padding: 80px 20px; }
+.empty-cart .icon { font-size: 4rem; opacity: 0.3; margin-bottom: 20px; }
 
-/* CONTROLES CANTIDAD */
-.qty-controls { display: flex; align-items: center; margin-top: 8px; }
-.qty-btn { width: 24px; height: 24px; border-radius: 50%; border: 1px solid #dee2e6; background: white; color: #525f7f; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; font-weight: bold; font-size: 0.9rem; }
-.qty-btn:hover { background: #5e72e4; color: white; border-color: #5e72e4; }
-.qty-val { margin: 0 10px; font-size: 0.9rem; font-weight: bold; color: #32325d; }
+/* === MODALES === */
+.modal-backdrop { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); z-index: 2000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+.modal-card { background: white; width: 500px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: slideUp 0.4s ease; }
+.modal-card.modal-lg { width: 800px; }
+.modal-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+.bg-dark { background: #172b4d; }
+.text-white { color: white; }
+.close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #889; }
+.close-btn.white { color: white; }
+.modal-body { padding: 30px; }
+.modal-footer { padding: 20px; border-top: 1px solid #eee; background: #f9f9f9; text-align: right; }
 
-.item-right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-.mini-price { font-weight: 700; color: #2dce89; font-size: 1rem; }
-.btn-trash { background: none; border: none; color: #f5365c; cursor: pointer; font-size: 1.1rem; opacity: 0.7; transition: 0.2s; }
-.btn-trash:hover { opacity: 1; transform: scale(1.1); }
+/* PASO 1: Identidad */
+.search-row { display: flex; gap: 10px; margin-bottom: 20px; }
+.input-styled { width: 100%; padding: 10px; border: 1px solid #dee2e6; border-radius: 5px; outline: none; }
+.input-styled:focus { border-color: #5e72e4; box-shadow: 0 0 0 3px rgba(94, 114, 228, 0.1); }
+.input-styled.filled { background: #e8f6fc; border-color: #11cdef; color: #172b4d; font-weight: 600; }
+.btn-search { background: #5e72e4; color: white; border: none; padding: 0 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+.btn-primary { background: #5e72e4; color: white; border: none; padding: 12px; border-radius: 5px; font-weight: 700; cursor: pointer; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-size: 0.85rem; color: #8898aa; font-weight: 600; }
 
-.summary-total .row { display: flex; justify-content: space-between; margin-bottom: 10px; color: #525f7f; }
-.summary-total .final { border-top: 1px solid #e9ecef; padding-top: 15px; margin-top: 15px; font-weight: 800; font-size: 1.25rem; color: #32325d; }
+/* PASO 2: Pasarela */
+.gateway-body { display: grid; grid-template-columns: 1fr 1.2fr; min-height: 350px; }
+.payment-methods { padding: 25px; background: #f8f9fe; border-right: 1px solid #eee; }
+.section-title { margin: 0 0 20px 0; font-size: 0.85rem; text-transform: uppercase; color: #8898aa; font-weight: 700; }
+.method-card { display: flex; align-items: center; gap: 15px; padding: 15px; background: white; border: 1px solid #e9ecef; border-radius: 10px; margin-bottom: 15px; cursor: pointer; transition: 0.2s; }
+.method-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+.method-card.active { border-color: #5e72e4; background: #f4f5fe; box-shadow: 0 0 0 2px #5e72e4; }
+.method-card .icon { font-size: 1.5rem; }
+.method-card .text strong { display: block; font-size: 0.9rem; color: #32325d; }
+.method-card .text small { font-size: 0.75rem; color: #8898aa; }
 
-/* COMPONENTES FORMULARIO */
-.search-group { display: flex; gap: 10px; margin-bottom: 15px; }
-.compact { width: 100px; }
-.btn-dark { background: #172b4d; color: white; border: none; padding: 0 1.5rem; border-radius: 0.375rem; cursor: pointer; font-weight: 600; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
-.client-result { background: #f6f9fc; padding: 1rem; border-radius: 0.375rem; margin-top: 1rem; border: 1px solid #e9ecef; }
-.btn-next { width: 100%; background: #5e72e4; color: white; border: none; padding: 0.75rem; border-radius: 0.375rem; font-weight: 600; margin-top: 1rem; cursor: pointer; box-shadow: 0 4px 6px rgba(50,50,93,.11); transition: 0.3s; }
-.btn-next:hover { transform: translateY(-1px); box-shadow: 0 7px 14px rgba(50,50,93,.1); }
+.card-details { padding: 25px; display: flex; flex-direction: column; justify-content: space-between; }
+.card-visual { background: linear-gradient(135deg, #172b4d 0%, #1a174d 100%); border-radius: 12px; padding: 20px; color: white; margin-bottom: 20px; position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+.chip { width: 40px; height: 25px; background: linear-gradient(135deg, #e0c168, #f8e2a2); border-radius: 5px; margin-bottom: 20px; }
+.number { font-family: monospace; font-size: 1.2rem; letter-spacing: 2px; margin-bottom: 15px; text-shadow: 0 2px 2px rgba(0,0,0,0.3); }
+.name { font-size: 0.8rem; text-transform: uppercase; opacity: 0.8; }
+.logo-visa { position: absolute; top: 20px; right: 20px; font-weight: 800; font-style: italic; font-size: 1.2rem; }
 
-.payment-tabs { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
-.payment-tabs button { flex: 1; padding: 1rem; border: 1px solid #dee2e6; background: white; border-radius: 0.375rem; font-weight: 600; color: #8898aa; cursor: pointer; transition: 0.3s; }
-.payment-tabs button.active { background: #172b4d; color: white; border-color: #172b4d; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
+.yape-info { text-align: center; padding: 20px; background: #fafafa; border-radius: 8px; border: 1px dashed #ccc; }
+.qr-placeholder { width: 100px; height: 100px; background: #32325d; color: white; display: flex; align-items: center; justify-content: center; margin: 10px auto; font-weight: bold; }
 
-/* TARJETA & OTROS */
-.btn-pay-final { width: 100%; background: #2dce89; color: white; border: none; padding: 1rem; border-radius: 0.375rem; font-weight: 700; font-size: 1.1rem; margin-top: 1.5rem; cursor: pointer; box-shadow: 0 4px 6px rgba(50,50,93,.11); transition: 0.3s; }
-.btn-pay-final:hover { transform: translateY(-1px); background: #26af74; box-shadow: 0 7px 14px rgba(50,50,93,.1); }
-.credit-options { background: #fff9f2; padding: 1.5rem; border-radius: 0.375rem; border: 1px solid #ffe5d0; color: #8a5340; }
-.cuotas-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0; }
-.cuota-card { background: white; border: 1px solid #dee2e6; padding: 10px; text-align: center; border-radius: 0.375rem; cursor: pointer; transition: 0.2s; }
-.cuota-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(50,50,93,.11); }
-.cuota-card.selected { border-color: #fb6340; background: #fb6340; color: white; }
+.total-pay-row { display: flex; justify-content: space-between; align-items: center; font-size: 1.1rem; color: #32325d; padding-top: 15px; border-top: 1px solid #eee; }
+.btn-success { background: #2dce89; color: white; border: none; padding: 15px; border-radius: 8px; font-weight: 800; font-size: 1rem; width: 100%; cursor: pointer; transition: 0.2s; }
+.btn-success:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(45,206,137,0.4); }
+.secure-seal { text-align: center; margin-top: 10px; font-size: 0.75rem; color: #8898aa; display: flex; align-items: center; justify-content: center; gap: 5px; }
 
-.card-simulator { perspective: 1000px; margin-bottom: 20px; }
-.flip-container { width: 320px; height: 200px; margin: 0 auto 20px; }
-.flipper { position: relative; width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
-.flip-container.flipped .flipper { transform: rotateY(180deg); }
-.front, .back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 15px; color: white; box-shadow: 0 15px 35px rgba(50,50,93,.1), 0 5px 15px rgba(0,0,0,.07); padding: 20px; box-sizing: border-box; }
-.front { background: linear-gradient(87deg, #172b4d 0, #1a174d 100%); z-index: 2; transform: rotateY(0deg); display: flex; flex-direction: column; justify-content: space-between; }
-.back { background: linear-gradient(87deg, #1a174d 0, #172b4d 100%); transform: rotateY(180deg); padding: 0; }
-.chip { width: 50px; height: 35px; background: linear-gradient(135deg, #d4af37, #f1d676); border-radius: 5px; }
-.logo-visa { width: 60px; position: absolute; top: 20px; right: 20px; }
-.card-number { font-size: 1.4rem; letter-spacing: 2px; font-family: monospace; text-shadow: 0 2px 2px rgba(0,0,0,0.5); }
-.strip { width: 100%; height: 40px; background: black; margin-top: 20px; }
-.cvv-box { background: white; color: black; width: 80%; margin: 10px auto; height: 30px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; font-family: monospace; border-radius: 4px; }
-.cvv-label { text-align: right; width: 80%; margin: 5px auto 0; font-size: 0.7rem; opacity: 0.7; }
-
-.empty-state { text-align: center; padding: 100px 20px; }
-.empty-icon { font-size: 4rem; margin-bottom: 20px; opacity: 0.3; }
-.btn-back { display: inline-block; margin-top: 20px; padding: 12px 30px; background: #172b4d; color: white; text-decoration: none; border-radius: 30px; font-weight: 600; transition: 0.3s; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
-
-@media (max-width: 900px) { .grid-layout { grid-template-columns: 1fr; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }
+.full-width { width: 100%; }
+.w-auto { width: auto; }
+.flex-1 { flex: 1; }
 </style>

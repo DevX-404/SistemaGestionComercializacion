@@ -1,48 +1,30 @@
 const dashboardService = require('../services/DashboardService');
 const { connectMySQL } = require('../config/databases');
 
+// 1. Obtener Tarjetas de Resumen (KPIs)
 const obtenerKPIs = async (req, res) => {
     try {
+        // Delegamos la lógica compleja al servicio
         const datos = await dashboardService.obtenerResumen();
+        
+        // Respondemos UNA SOLA VEZ
         res.json(datos);
-    } catch (error) {
-        res.status(500).json({ message: 'Error obteniendo datos del dashboard' });
-    }
-
-    try {
-        const resultados = { ventasHoy: 0, creditosPendientes: 0, productosBajoStock: 0, totalProductos: 0 };
         
-        // 1. MySQL
-        const mysql = await connectMySQL();
-        const [ventas] = await mysql.execute("SELECT SUM(total) as total FROM ventas_cabecera WHERE DATE(fecha_emision) = CURDATE() AND estado = 'COMPLETADO'");
-        resultados.ventasHoy = ventas[0].total || 0;
-        
-        const [deudas] = await mysql.execute("SELECT SUM(saldo_pendiente) as total FROM cuentas_por_cobrar WHERE estado != 'PAGADO'");
-        resultados.creditosPendientes = deudas[0].total || 0;
-        await mysql.end();
-
-        // 2. Postgres
-        const stockQuery = await poolPg.query("SELECT COUNT(*) as total FROM inventario_resumen WHERE stock_actual <= stock_minimo");
-        resultados.productosBajoStock = parseInt(stockQuery.rows[0].total);
-
-        // 3. Mongo
-        resultados.totalProductos = await Producto.countDocuments();
-
-        res.json(resultados);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error KPIs' });
+        console.error("Error en KPIs Controller:", error);
+        // Evitar error de doble respuesta si falla algo
+        if (!res.headersSent) {
+            res.status(500).json({ message: 'Error obteniendo datos del dashboard' });
+        }
     }
 };
 
-// --- FUNCIÓN CORREGIDA DEL GRÁFICO ---
+// 2. Obtener Datos para el Gráfico
 const obtenerVentasSemana = async (req, res) => {
     try {
         const connection = await connectMySQL();
         
-        // CORRECCIÓN SQL:
-        // 1. Usamos DATE_SUB en lugar de la resta directa.
-        // 2. Hacemos GROUP BY exactamente por la misma expresión del SELECT para evitar error de 'only_full_group_by'
+        // Consulta agrupada por día (Últimos 7 días)
         const query = `
             SELECT 
                 DATE_FORMAT(fecha_emision, '%Y-%m-%d') as fecha,
@@ -60,8 +42,10 @@ const obtenerVentasSemana = async (req, res) => {
         res.json(rows);
 
     } catch (error) {
-        console.error("Error en Gráfico:", error.message); // Verás el error real en la terminal del servidor
-        res.status(500).json({ message: 'Error al generar gráfico de ventas' });
+        console.error("Error en Gráfico Controller:", error.message);
+        if (!res.headersSent) {
+            res.status(500).json({ message: 'Error al generar gráfico de ventas' });
+        }
     }
 };
 

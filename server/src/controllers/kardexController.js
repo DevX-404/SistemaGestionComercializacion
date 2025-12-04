@@ -10,6 +10,7 @@ const getKardex = async (req, res) => {
                 k.fecha_movimiento,
                 k.tipo_movimiento,
                 k.cantidad,
+                k.costo_unitario,
                 k.saldo_stock_resultante,
                 k.referencia_documento
             FROM kardex_movimientos k

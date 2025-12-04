@@ -1,35 +1,49 @@
 <template>
   <div class="page-container fade-in">
     
-    <div class="kpi-grid">
-      <div class="kpi-card purple">
-        <div class="kpi-icon">💰</div>
-        <div class="kpi-data">
-          <small>Deuda Total Activa</small>
+    <div class="stats-grid">
+      <div class="stat-card card-gradient-purple">
+        <div class="stat-content">
+          <p>DEUDA TOTAL ACTIVA</p>
           <h3>S/ {{ totalDeuda.toFixed(2) }}</h3>
         </div>
+        <div class="stat-icon">💰</div>
       </div>
-      <div class="kpi-card orange">
-        <div class="kpi-icon">⏳</div>
-        <div class="kpi-data">
-          <small>Cuentas Pendientes</small>
-          <h3>{{ cuentas.filter(c => c.estado === 'PENDIENTE').length }}</h3>
+      
+      <div class="stat-card card-gradient-orange">
+        <div class="stat-content">
+          <p>CUENTAS POR COBRAR</p>
+          <h3>{{ cuentasPendientes }} expedientes</h3>
         </div>
+        <div class="stat-icon">📂</div>
       </div>
-      <div class="kpi-card green">
-        <div class="kpi-icon">✅</div>
-        <div class="kpi-data">
-          <small>Recuperado (Pagado)</small>
-          <h3>{{ ((1 - (totalDeuda / totalOriginal)) * 100).toFixed(1) }}%</h3>
+
+      <div class="stat-card card-gradient-green">
+        <div class="stat-content">
+          <p>TASA DE RECUPERACIÓN</p>
+          <h3>{{ tasaRecuperacion }}%</h3>
         </div>
+        <div class="stat-icon">📈</div>
       </div>
     </div>
 
     <div class="page-header-actions">
-      <h3 class="page-title">Cartera de Clientes</h3>
-      <div class="search-input-group">
-        <span class="icon">🔍</span>
-        <input v-model="busqueda" placeholder="Buscar cliente o DNI..." />
+      <div class="title-wrapper">
+        <h3 class="page-title">Gestión de Cobranzas</h3>
+        <p class="page-subtitle">Cartera de clientes y seguimiento de pagos</p>
+      </div>
+      
+      <div class="actions-wrapper">
+        <div class="search-input-group">
+          <span class="icon">🔍</span>
+          <input v-model="busqueda" placeholder="Buscar cliente o DNI..." />
+        </div>
+        <select v-model="filtroEstado" class="filter-select">
+           <option value="TODOS">Todos</option>
+           <option value="PENDIENTE">Pendientes</option>
+           <option value="VENCIDO">Vencidos</option>
+           <option value="PAGADO">Pagados</option>
+        </select>
       </div>
     </div>
 
@@ -38,54 +52,48 @@
         <thead>
           <tr>
             <th>Cliente</th>
-            <th>Crédito (ID)</th>
-            <th>Emisión</th>
-            <th>Vencimiento</th>
-            <th>Progreso Pago</th>
-            <th>Deuda Actual</th>
-            <th>Estado</th>
-            <th></th>
+            <th>Crédito ID</th>
+            <th>Emisión / Vencimiento</th>
+            <th>Estado Deuda</th>
+            <th>Saldo Pendiente</th>
+            <th class="text-right">Expediente</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="cuenta in cuentasFiltradas" :key="cuenta.id">
+          <tr v-for="cuenta in cuentasFiltradas" :key="cuenta.id" :class="{'row-vencida': esVencido(cuenta)}">
             <td>
               <div class="cell-wrapper">
-                <div class="avatar-circle bg-gradient-blue">
-                  {{ cuenta.cliente.charAt(0) }}
-                </div>
+                <div class="avatar-circle bg-gradient-info">{{ cuenta.cliente.charAt(0) }}</div>
                 <div class="cell-text">
                   <span class="main-text">{{ cuenta.cliente }}</span>
                   <span class="sub-text">{{ cuenta.ruc_dni }}</span>
                 </div>
               </div>
             </td>
-            <td class="text-muted">#{{ cuenta.id.toString().padStart(6, '0') }}</td>
-            <td>{{ formatearFecha(cuenta.fecha_emision) }}</td>
+            <td><span class="ticket-id">#{{ cuenta.id.toString().padStart(6, '0') }}</span></td>
             <td>
-               <span :class="esVencido(cuenta.fecha_vencimiento) ? 'text-danger fw-bold' : ''">
-                 {{ formatearFecha(cuenta.fecha_vencimiento) }}
-               </span>
+               <div class="date-col">
+                 <span>{{ formatearFecha(cuenta.fecha_emision) }}</span>
+                 <small :class="esVencido(cuenta) ? 'text-danger fw-bold' : 'text-muted'">
+                    Vence: {{ formatearFecha(cuenta.fecha_vencimiento) }}
+                 </small>
+               </div>
             </td>
-            <td style="width: 150px;">
-               <div class="progress-wrapper">
-                  <div class="progress-bar">
-                    <div class="progress-fill" :style="{ width: calcularProgreso(cuenta) + '%' }"></div>
-                  </div>
-                  <span class="progress-text">{{ calcularProgreso(cuenta) }}%</span>
+            <td style="width: 200px; padding-right: 20px;">
+               <div class="progress-info">
+                  <span class="status-badge" :class="getClassEstado(cuenta)">{{ cuenta.estado }}</span>
+                  <span class="porcentaje">{{ calcularProgreso(cuenta) }}% Pagado</span>
+               </div>
+               <div class="progress-track">
+                  <div class="progress-fill" :class="getClassEstado(cuenta)" :style="{ width: calcularProgreso(cuenta) + '%' }"></div>
                </div>
             </td>
             <td>
                <span class="price-tag">S/ {{ cuenta.saldo_pendiente }}</span>
             </td>
-            <td>
-              <span class="badge-status" :class="getClassEstado(cuenta)">
-                {{ cuenta.estado }}
-              </span>
-            </td>
             <td class="text-right">
-              <button class="btn-action view" @click="verDetalle(cuenta.id)" title="Ver Expediente">
-                 📂
+              <button class="btn-action view" @click="verDetalle(cuenta.id)" title="Ver Detalle">
+                 📂 Abrir
               </button>
             </td>
           </tr>
@@ -93,7 +101,8 @@
       </table>
       
       <div v-if="cuentasFiltradas.length === 0" class="empty-state">
-         <p>No se encontraron deudas con ese criterio.</p>
+         <div class="empty-icon">📭</div>
+         <p>No se encontraron cuentas.</p>
       </div>
     </div>
 
@@ -108,6 +117,7 @@ import api from '../../api/axios';
 const router = useRouter();
 const cuentas = ref([]);
 const busqueda = ref('');
+const filtroEstado = ref('TODOS');
 
 const cargarCuentas = async () => {
   try {
@@ -116,65 +126,119 @@ const cargarCuentas = async () => {
   } catch (e) { console.error(e); }
 };
 
+// --- LÓGICA FILTROS ---
 const cuentasFiltradas = computed(() => 
-  cuentas.value.filter(c => 
-    c.cliente.toLowerCase().includes(busqueda.value.toLowerCase()) ||
-    c.ruc_dni.includes(busqueda.value)
-  )
+  cuentas.value.filter(c => {
+    const matchTexto = c.cliente.toLowerCase().includes(busqueda.value.toLowerCase()) || c.ruc_dni.includes(busqueda.value);
+    
+    let matchEstado = true;
+    if (filtroEstado.value === 'PENDIENTE') matchEstado = c.estado === 'PENDIENTE' && !esVencido(c);
+    else if (filtroEstado.value === 'VENCIDO') matchEstado = esVencido(c) && c.estado !== 'PAGADO';
+    else if (filtroEstado.value === 'PAGADO') matchEstado = c.estado === 'PAGADO';
+
+    return matchTexto && matchEstado;
+  })
 );
 
-// Cálculos KPI
-const totalDeuda = computed(() => cuentas.value.reduce((acc, c) => acc + parseFloat(c.saldo_pendiente), 0));
-const totalOriginal = computed(() => cuentas.value.reduce((acc, c) => acc + parseFloat(c.monto_total), 0) || 1); // Evitar div 0
-
-// Utilidades
-const verDetalle = (id) => router.push({ name: 'detalle-cuenta', params: { id } });
-const formatearFecha = (f) => new Date(f).toLocaleDateString('es-PE', {day:'2-digit', month:'2-digit', year:'2-digit'});
-const esVencido = (f) => new Date(f) < new Date() && new Date(f).getDate() !== new Date().getDate();
+// --- LÓGICA NEGOCIO ---
+const esVencido = (c) => {
+    if (c.estado === 'PAGADO') return false;
+    const fechaVenc = new Date(c.fecha_vencimiento);
+    const hoy = new Date();
+    return fechaVenc < hoy;
+};
 
 const calcularProgreso = (c) => {
   const total = parseFloat(c.monto_total);
   const pendiente = parseFloat(c.saldo_pendiente);
+  if (total === 0) return 100;
   return Math.round(((total - pendiente) / total) * 100);
 };
 
 const getClassEstado = (c) => {
   if(c.estado === 'PAGADO') return 'success';
-  if(esVencido(c.fecha_vencimiento)) return 'danger';
-  return 'warning';
+  if(esVencido(c)) return 'danger';
+  return 'warning'; // Pendiente al día
 };
+
+// --- KPIs ---
+const totalDeuda = computed(() => cuentas.value.filter(c => c.estado !== 'PAGADO').reduce((acc, c) => acc + parseFloat(c.saldo_pendiente), 0));
+const cuentasPendientes = computed(() => cuentas.value.filter(c => c.estado !== 'PAGADO').length);
+const tasaRecuperacion = computed(() => {
+    const total = cuentas.value.reduce((acc, c) => acc + parseFloat(c.monto_total), 0) || 1;
+    const pagado = cuentas.value.reduce((acc, c) => acc + parseFloat(c.monto_pagado), 0);
+    return ((pagado / total) * 100).toFixed(1);
+});
+
+const formatearFecha = (f) => new Date(f).toLocaleDateString('es-PE', {day:'2-digit', month:'short', year:'2-digit'});
+const verDetalle = (id) => router.push({ name: 'detalle-cuenta', params: { id } });
 
 onMounted(() => cargarCuentas());
 </script>
 
 <style scoped>
-/* Hereda estilos del main.css, agregamos específicos */
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-.kpi-card { background: white; padding: 20px; border-radius: 15px; display: flex; align-items: center; gap: 15px; box-shadow: var(--shadow-card); position: relative; overflow: hidden; }
-.kpi-card::before { content: ''; position: absolute; top: 0; left: 0; width: 5px; height: 100%; }
-.kpi-card.purple::before { background: var(--primary); }
-.kpi-card.orange::before { background: var(--warning); }
-.kpi-card.green::before { background: var(--success); }
+.page-container { padding: 20px; font-family: 'Segoe UI', sans-serif; }
 
-.kpi-icon { font-size: 2rem; opacity: 0.8; }
-.kpi-data h3 { margin: 0; font-size: 1.5rem; color: var(--text-main); }
-.kpi-data small { color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.7rem; }
+/* KPIs (Estilo Argon) */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
+.stat-card { border-radius: 15px; padding: 20px; display: flex; justify-content: space-between; align-items: center; color: white; box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1); transition: transform 0.2s; }
+.stat-card:hover { transform: translateY(-3px); }
+.card-gradient-purple { background: linear-gradient(87deg, #5e72e4 0, #825ee4 100%); }
+.card-gradient-orange { background: linear-gradient(87deg, #fb6340 0, #fbb140 100%); }
+.card-gradient-green { background: linear-gradient(87deg, #2dce89 0, #2dcecc 100%); }
+.stat-content p { margin: 0; font-size: 0.75rem; font-weight: 800; opacity: 0.9; }
+.stat-content h3 { margin: 5px 0 0; font-size: 1.5rem; font-weight: 800; }
+.stat-icon { font-size: 2rem; opacity: 0.4; }
 
-.bg-gradient-blue { background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%); }
-.price-tag { font-weight: 800; color: var(--text-main); background: #f6f9fc; padding: 5px 10px; border-radius: 8px; font-size: 0.9rem; }
+/* Header */
+.page-header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.page-title { margin: 0; color: #32325d; font-weight: 800; font-size: 1.3rem; }
+.page-subtitle { margin: 0; color: #889; font-size: 0.85rem; }
+.actions-wrapper { display: flex; gap: 10px; }
+.search-input-group { background: white; padding: 8px 15px; border-radius: 30px; display: flex; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.search-input-group input { border: none; outline: none; margin-left: 10px; color: #525f7f; width: 200px; font-size: 0.85rem; }
+.filter-select { padding: 8px 15px; border: 1px solid #e9ecef; border-radius: 5px; color: #525f7f; font-weight: 600; outline: none; background: white; }
 
-/* Barra de Progreso */
-.progress-wrapper { display: flex; align-items: center; gap: 10px; }
-.progress-bar { flex: 1; height: 6px; background: #e9ecef; border-radius: 10px; overflow: hidden; }
-.progress-fill { height: 100%; background: var(--success); border-radius: 10px; transition: width 0.5s ease; }
-.progress-text { font-size: 0.7rem; font-weight: bold; color: var(--text-muted); }
+/* Tabla */
+.card-box { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 0 2rem rgba(136,152,170,0.15); }
+.monster-table { width: 100%; border-collapse: collapse; }
+.monster-table th { text-align: left; padding: 15px; color: #8898aa; font-size: 0.7rem; text-transform: uppercase; border-bottom: 1px solid #eee; background: #f6f9fc; letter-spacing: 1px; }
+.monster-table td { padding: 15px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
 
-/* Badges */
-.badge-status { padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; }
-.badge-status.success { background: #eafaf1; color: #2ecc71; }
-.badge-status.warning { background: #fff3cd; color: #f39c12; }
-.badge-status.danger { background: #fdedec; color: #e74c3c; }
+.cell-wrapper { display: flex; align-items: center; gap: 15px; }
+.avatar-circle { width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: white; box-shadow: 0 4px 6px rgba(50,50,93,.11); }
+.bg-gradient-info { background: linear-gradient(87deg, #11cdef 0, #1171ef 100%); }
+.main-text { font-weight: 700; color: #32325d; font-size: 0.9rem; display: block; }
+.sub-text { color: #8898aa; font-size: 0.75rem; display: block; }
+.ticket-id { font-family: monospace; color: #5e72e4; background: #e8f6fc; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; }
 
-.btn-action.view { background: #fff; color: #11cdef; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.btn-action.view:hover { background: #11cdef; color: white; }
+.date-col { display: flex; flex-direction: column; font-size: 0.85rem; line-height: 1.3; }
+.text-danger { color: #f5365c; }
+.text-muted { color: #8898aa; }
+.fw-bold { font-weight: bold; }
+
+/* Barra Progreso */
+.progress-info { display: flex; justify-content: space-between; margin-bottom: 5px; align-items: center; }
+.status-badge { padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+.status-badge.success { background: #eafaf1; color: #2dce89; }
+.status-badge.warning { background: #fff3cd; color: #f39c12; }
+.status-badge.danger { background: #fdedec; color: #f5365c; }
+.porcentaje { font-size: 0.7rem; color: #525f7f; font-weight: bold; }
+
+.progress-track { height: 6px; background: #e9ecef; border-radius: 10px; overflow: hidden; }
+.progress-fill { height: 100%; transition: width 0.5s; border-radius: 10px; }
+.progress-fill.success { background: #2dce89; }
+.progress-fill.warning { background: #fb6340; }
+.progress-fill.danger { background: #f5365c; }
+
+.price-tag { font-weight: 800; color: #32325d; font-size: 0.95rem; }
+.btn-action.view { background: white; color: #5e72e4; border: 1px solid #e9ecef; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 0.8rem; transition: 0.2s; }
+.btn-action.view:hover { background: #5e72e4; color: white; border-color: #5e72e4; }
+
+.row-vencida { background-color: rgba(245, 54, 92, 0.03); } /* Fondo rojo muy sutil */
+
+.empty-state { text-align: center; padding: 40px; color: #adb5bd; }
+.empty-icon { font-size: 3rem; margin-bottom: 10px; opacity: 0.5; }
+.fade-in { animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 </style>

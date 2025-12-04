@@ -138,65 +138,114 @@ const busqueda = ref('');
 const archivo = ref(null);
 const notificaciones = ref([]);
 
-const form = ref({ _id: null, sku: '', nombre: '', precio: 0, stock_inicial: 0, categoria: '', descripcion: '' });
+// Modelo del formulario
+const form = ref({ 
+  _id: null, sku: '', nombre: '', precio: 0, stock_inicial: 0, categoria: '', descripcion: '' 
+});
 
+// --- Helpers ---
 const notify = (t, m, k='success') => {
-    const id = Date.now(); notificaciones.value.push({id, titulo:t, mensaje:m, tipo:k});
+    const id = Date.now(); 
+    notificaciones.value.push({id, titulo:t, mensaje:m, tipo:k});
     setTimeout(() => notificaciones.value = notificaciones.value.filter(n=>n.id!==id), 4000);
 };
 
+const handleFile = (e) => archivo.value = e.target.files[0];
+
+// --- Cargar Datos ---
 const cargarDatos = async () => {
   await inventario.fetchProductos();
-  try { const {data} = await api.get('/categorias'); categorias.value = data; } catch(e){}
+  try { 
+      const {data} = await api.get('/categorias'); 
+      categorias.value = data;
+  } catch(e){}
 };
 
-const productosFiltrados = computed(() => 
-  inventario.productos.filter(p => p.nombre.toLowerCase().includes(busqueda.value.toLowerCase()))
-);
+// --- Abrir Modal (Corregido Carga de Categoría) ---
+const abrirModal = (prod) => {
+  archivo.value = null;
+  if(prod) {
+    // MODO EDICIÓN
+    form.value = { 
+        ...prod, 
+        precio: prod.precio_base, 
+        // La categoría puede venir directo o dentro de specs, aseguramos que la lea
+        categoria: prod.categoria || 'General' 
+    };
+  } else {
+    // MODO CREACIÓN
+    form.value = { 
+        _id: null, sku: '', nombre: '', precio: 0, stock_inicial: 0, 
+        // Preselecciona la primera categoría activa si existe
+        categoria: categorias.value.length > 0 ? categorias.value[0].nombre : '',
+        descripcion: '' 
+    };
+  }
+  modal.value = true;
+};
 
+// --- Guardar (Switch POST/PUT) ---
+const guardar = async () => {
+  if(!form.value.nombre) return notify('Error','Nombre requerido','warning');
+  if(!form.value.categoria) return notify('Error','Seleccione una categoría','warning');
+
+  const fd = new FormData();
+  // No enviamos SKU si estamos editando (es la llave)
+  if (!form.value._id) fd.append('sku', form.value.sku);
+  
+  fd.append('nombre', form.value.nombre);
+  fd.append('precio', form.value.precio);
+  fd.append('categoria', form.value.categoria);
+  fd.append('descripcion', form.value.descripcion || '');
+  
+  // El stock inicial solo se manda al crear
+  if(!form.value._id) fd.append('stock_inicial', form.value.stock_inicial);
+  
+  if(archivo.value) fd.append('imagen', archivo.value);
+
+  try {
+      if (form.value._id) {
+          // EDITAR (PUT)
+          await api.put(`/productos/${form.value.sku}`, fd, {headers:{'Content-Type':'multipart/form-data'}});
+          notify('Actualizado', 'Producto editado correctamente');
+      } else {
+          // CREAR (POST)
+          await api.post('/productos', fd, {headers:{'Content-Type':'multipart/form-data'}});
+          notify('Creado', 'Producto registrado con éxito');
+      }
+      modal.value = false; 
+      cargarDatos();
+  } catch(e) { 
+      console.error(e);
+      notify('Error', e.response?.data?.error || 'Error en el servidor', 'danger'); 
+  }
+};
+
+// ... (Mantén las funciones generarSKU, eliminar, cambiarEstado igual que antes) ...
 const generarSKU = () => {
-  if(form.value._id) return;
+  if(form.value._id) return; // No cambiar SKU al editar
   const n = form.value.nombre || '';
   if(n.length < 3) return;
   form.value.sku = (n.substring(0,3) + '-' + Math.floor(Date.now()/1000).toString().slice(-4)).toUpperCase();
 };
 
-const abrirModal = (p) => {
-  archivo.value = null;
-  if(p) form.value = { ...p, precio: p.precio_base, categoria: p.categoria || p.specs?.categoria };
-  else form.value = { _id:null, sku:'', nombre:'', precio:0, stock_inicial:0, categoria:'General' };
-  modal.value = true;
-};
-
-const handleFile = (e) => archivo.value = e.target.files[0];
-
-const guardar = async () => {
-  if(!form.value.nombre) return notify('Error','Nombre requerido','warning');
-  const fd = new FormData();
-  fd.append('sku', form.value.sku);
-  fd.append('nombre', form.value.nombre);
-  fd.append('precio', form.value.precio);
-  fd.append('categoria', form.value.categoria);
-  fd.append('descripcion', form.value.descripcion || '');
-  if(!form.value._id) fd.append('stock_inicial', form.value.stock_inicial);
-  if(archivo.value) fd.append('imagen', archivo.value);
-
-  try {
-      await api.post('/productos', fd, {headers:{'Content-Type':'multipart/form-data'}});
-      notify('Éxito', 'Producto guardado');
-      modal.value = false; cargarDatos();
-  } catch(e) { notify('Error', 'No se pudo guardar', 'danger'); }
-};
-
 const cambiarEstado = async (p, nuevoEstado) => {
-  if(!confirm(`¿${nuevoEstado === 'INACTIVO' ? 'Dar de baja' : 'Reactivar'} a ${p.nombre}?`)) return;
+  if(!confirm(`¿${nuevoEstado === 'INACTIVO' ? 'Dar de baja' : 'Reactivar'}?`)) return;
   try {
      if(nuevoEstado === 'INACTIVO') await api.delete(`/productos/${p.sku}`);
      else await api.patch(`/productos/${p.sku}/reactivar`);
      notify('Listo', `Producto ${nuevoEstado.toLowerCase()}`);
      cargarDatos();
-  } catch(e) { notify('Error', 'Falló la operación', 'danger'); }
+  } catch(e) { notify('Error', 'Falló operación', 'danger'); }
 };
+
+// Filtro
+const productosFiltrados = computed(() => 
+  inventario.productos.filter(p => 
+     p.nombre.toLowerCase().includes(busqueda.value.toLowerCase()) ||
+     p.sku.toLowerCase().includes(busqueda.value.toLowerCase())
+  )
+);
 
 onMounted(() => cargarDatos());
 </script>

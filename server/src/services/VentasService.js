@@ -87,7 +87,6 @@ class VentasService {
 
             // ---------------------------------------------------------
             // 3. ACTUALIZAR LOGÍSTICA (PostgreSQL)
-            // Descargamos el stock y actualizamos el Kardex
             // ---------------------------------------------------------
             for (const item of items) {
                 // A. Restar Stock Físico
@@ -97,14 +96,20 @@ class VentasService {
                 );
 
                 // B. Registrar en KARDEX (Historial)
-                const stockFinalRes = await poolPg.query('SELECT stock_actual FROM inventario_resumen WHERE producto_sku = $1', [item.sku]);
-                const stockFinal = stockFinalRes.rows[0].stock_actual;
+                // CORRECCIÓN: Ahora traemos también 'costo_promedio'
+                const stockRes = await poolPg.query(
+                    'SELECT stock_actual, costo_promedio FROM inventario_resumen WHERE producto_sku = $1', 
+                    [item.sku]
+                );
+                
+                const stockFinal = stockRes.rows[0]?.stock_actual || 0;
+                const costoHistorico = stockRes.rows[0]?.costo_promedio || 0; // <--- EL DATO QUE FALTABA
 
                 await poolPg.query(
                     `INSERT INTO kardex_movimientos 
-                    (producto_sku, almacen_id, tipo_movimiento, cantidad, saldo_stock_resultante, referencia_documento)
-                    VALUES ($1, 1, 'VENTA', $2, $3, $4)`,
-                    [item.sku, -item.cantidad, stockFinal, `VENTA-${ventaId}`]
+                    (producto_sku, almacen_id, tipo_movimiento, cantidad, costo_unitario, saldo_stock_resultante, referencia_documento)
+                    VALUES ($1, 1, 'VENTA', $2, $3, $4, $5)`,
+                    [item.sku, -item.cantidad, costoHistorico, stockFinal, `VENTA-${ventaId}`]
                 );
             }
 

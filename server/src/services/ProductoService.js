@@ -26,7 +26,7 @@ class ProductoService {
             descripcion, 
             precio_base: precio,
             imagenes: rutaImagen ? [rutaImagen] : [],
-            categoria,
+            categoria: datosProducto.categoria,
             stock: stock_inicial,
             estado: 'ACTIVO'
         });
@@ -46,6 +46,42 @@ class ProductoService {
         }
 
         return { success: true, message: 'Producto creado correctamente' };
+    }
+
+    // --- NUEVO: ACTUALIZAR PRODUCTO ---
+    async actualizarProducto(sku, datos, archivoImagen) {
+        const { nombre, descripcion, precio, categoria } = datos;
+        
+        // 1. Preparar objeto para Mongo
+        const updateData = {
+            nombre,
+            descripcion,
+            precio_base: parseFloat(precio),
+            categoria: datos.categoria
+        };
+
+        // Si subieron foto nueva, la actualizamos. Si no, dejamos la anterior.
+        if (archivoImagen) {
+            updateData.imagenes = [`/img/${archivoImagen.filename}`];
+        }
+
+        // 2. Actualizar MongoDB (Información visual)
+        const actualizado = await Producto.findOneAndUpdate({ sku }, updateData, { new: true });
+        if (!actualizado) throw new Error('Producto no encontrado en catálogo');
+
+        // 3. Actualizar PostgreSQL (Costo referencial en inventario)
+        // No actualizamos el stock aquí, eso se hace en el módulo "Ingresos" o "Ventas"
+        try {
+            await poolPg.query(
+                'UPDATE inventario_resumen SET costo_promedio = $1 WHERE producto_sku = $2',
+                [parseFloat(precio) * 0.8, sku] // Asumimos costo 80% del precio base
+            );
+        } catch (error) {
+            console.error("Advertencia: No se pudo actualizar costo en Postgres", error.message);
+            // No lanzamos error fatal para no bloquear la edición visual
+        }
+
+        return { success: true, message: 'Producto actualizado correctamente' };
     }
 
     async listarTodo() {

@@ -1,4 +1,5 @@
 const proveedorService = require('../services/ProveedorService');
+const { poolPg } = require('../config/databases');
 const Joi = require('joi');
 
 // Schema de validación (Igual que antes)
@@ -28,12 +29,15 @@ const crear = async (req, res) => {
     } catch (e) { res.status(400).json({ message: e.message }); }
 };
 
+// SOFT DELETE (Ahora sí funcionará porque poolPg ya existe)
 const eliminar = async (req, res) => {
     try {
-        // OJO: Usamos $1 porque es PostgreSQL
         await poolPg.query("UPDATE proveedores SET estado = 'INACTIVO' WHERE id = $1", [req.params.id]);
         res.json({ message: 'Proveedor pasado a inactivo' });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        console.error(e);
+        res.status(500).json({ error: e.message }); 
+    }
 };
 
 // --- NUEVO: CONSULTAR RUC ---
@@ -49,4 +53,11 @@ const consultarRuc = async (req, res) => {
     }
 };
 
-module.exports = { listar, crear, eliminar, consultarRuc };
+const reactivar = async (req, res) => {
+    try {
+        await poolPg.query("UPDATE proveedores SET estado = 'ACTIVO' WHERE id = $1", [req.params.id]);
+        res.json({ message: 'Proveedor reactivado' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+};
+
+module.exports = { listar, crear, eliminar, consultarRuc, reactivar };

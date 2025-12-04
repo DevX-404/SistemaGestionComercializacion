@@ -9,5 +9,6 @@ router.get('/', usuariosController.listar);
 router.post('/', usuariosController.crear);
 router.put('/:id', usuariosController.editar);
 router.delete('/:id', usuariosController.eliminar);
+router.patch('/:id/reactivar', usuariosController.reactivar);
 
 module.exports = router;

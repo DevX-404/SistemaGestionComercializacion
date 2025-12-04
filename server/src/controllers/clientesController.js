@@ -56,4 +56,17 @@ const eliminar = async (req, res) => {
     }
 };
 
-module.exports = { buscarPorDocumento, listar, crear, schemaBusqueda, actualizar, eliminar };
+const reactivar = async (req, res) => {
+    const { connectMySQL } = require('../config/databases'); // Asegúrate de importar
+    const connection = await connectMySQL();
+    try {
+        await connection.execute("UPDATE clientes SET estado = 'ACTIVO' WHERE id = ?", [req.params.id]);
+        res.json({ message: 'Cliente reactivado exitosamente' });
+    } catch (e) { 
+        res.status(500).json({ error: e.message });
+    } finally {
+        if (connection) connection.end();
+    }
+};
+
+module.exports = { buscarPorDocumento, listar, crear, schemaBusqueda, actualizar, eliminar, reactivar };

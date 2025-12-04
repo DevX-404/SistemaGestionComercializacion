@@ -11,24 +11,22 @@ export const useAuthStore = defineStore('auth', {
         isAuthenticated: (state) => !!state.token
     },
     actions: {
-        async login(username, password) {
+        async login(credenciales) {
             try {
-                const { data } = await api.post('/auth/login', { username, password });
-
+                const { data } = await api.post('/auth/login', credenciales);
+                
                 this.token = data.token;
-                this.user = data.usuario;
-
-                // Guardar en navegador para no perder sesión al recargar
+                this.user = data.user; // Aquí se guardan los accesos
+                
+                // Guardar en LocalStorage
                 localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data.usuario));
-
-                // Configurar axios para usar el token en futuras peticiones
-                // (Esto requiere un pequeño ajuste en axios.js, luego lo hacemos)
+                localStorage.setItem('user', JSON.stringify(data.user)); // Persistir usuario completo
+                
+                router.push('/admin/dashboard');
 
                 return true;
             } catch (error) {
-                console.error(error);
-                return false;
+                throw error;
             }
         },
         logout() {

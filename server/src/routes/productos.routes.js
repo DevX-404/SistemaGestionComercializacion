@@ -19,7 +19,8 @@ const upload = multer({ storage: storage });
 
 // --- Rutas ---
 router.get('/', productosController.listar);
-router.post('/', upload.single('imagen'), productosController.crear); // <--- OJO AQUÍ
+router.post('/', upload.single('imagen'), productosController.crear); 
+router.put('/:sku', upload.single('imagen'), productosController.actualizar);
 router.delete('/:sku', productosController.eliminar);
 router.patch('/:sku/reactivar', productosController.reactivar); // Nueva ruta para reactivar
 

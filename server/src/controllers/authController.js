@@ -9,29 +9,35 @@ const login = async (req, res) => {
     try {
         const { username, password } = req.body;
 
-        // 1. Buscar usuario en Mongo
+        // 1. Buscar usuario
         const user = await Usuario.findOne({ username });
         if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-        // 2. Comparar contraseña
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) return res.status(400).json({ message: 'Contraseña incorrecta' });
+        // 2. Verificar estado
+        if (user.estado === 'INACTIVO') return res.status(403).json({ message: 'Usuario inactivo' });
 
-        // 3. Generar Token
+        // 3. Comparar password
+        const valid = await bcrypt.compare(password, user.password);
+        if (!valid) return res.status(401).json({ message: 'Contraseña incorrecta' });
+
+        // 4. Generar Token
         const token = jwt.sign(
-            { id: user._id, rol: user.rol, nombre: user.nombre_completo },
+            { id: user._id, rol: user.rol }, // Payload
             JWT_SECRET,
             { expiresIn: '8h' }
         );
 
+        // 5. RESPONDER AL FRONTEND (¡AQUÍ ESTABA EL DETALLE!)
+        // Debemos enviar 'accesos' explícitamente
         res.json({
             token,
-            usuario: {
+            user: {
                 _id: user._id,
                 username: user.username,
-                nombre: user.nombre_completo,
+                nombre: user.nombre_completo, // Asegúrate que en tu modelo sea 'nombre_completo'
                 rol: user.rol,
-                perfil: user.perfil // <--- ¡ESTO ES LO QUE FALTABA! Aquí viajan los permisos
+                accesos: user.accesos || [], // <--- ESTO ES LO QUE FALTABA
+                perfil: user.perfil
             }
         });
 

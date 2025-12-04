@@ -80,32 +80,29 @@
     </div>
 
     <transition name="modal-fade">
-      <div v-if="modalPago" class="modal-backdrop">
+      <div v-if="modalPago" class="modal-backdrop" @click.self="modalPago = false">
         <div class="modal-card slide-in-up">
-          <div class="modal-header bg-primary text-white">
-            <h4>Realizar Pago - Cuota #{{ cuotaSeleccionada.numero_cuota }}</h4>
+          <div class="modal-header bg-gradient-purple text-white">
+            <h4>Registrar Pago</h4>
             <button class="close-btn white" @click="modalPago = false">×</button>
           </div>
-          <div class="modal-body">
-             <div class="payment-summary">
-               <p>Monto a Pagar</p>
-               <h1 class="amount-display">S/ {{ parseFloat(cuotaSeleccionada.monto_cuota).toFixed(2) }}</h1>
-               <small>Vence: {{ formatearFecha(cuotaSeleccionada.fecha_vencimiento) }}</small>
-             </div>
+          <div class="modal-body text-center">
+             <p class="mb-1">Está por pagar la Cuota #{{ cuotaSeleccionada.numero_cuota }}</p>
+             <h1 class="pay-amount">S/ {{ parseFloat(cuotaSeleccionada.monto_cuota).toFixed(2) }}</h1>
              
-             <div class="form-group">
+             <div class="form-group mt-4 text-left">
                <label>Método de Pago</label>
                <select class="input-styled">
                  <option>Efectivo</option>
                  <option>Yape / Plin</option>
                  <option>Transferencia</option>
-                 <option>Tarjeta</option>
+                 <option>Tarjeta Crédito/Débito</option>
                </select>
              </div>
           </div>
           <div class="modal-footer">
              <button class="btn-ghost" @click="modalPago = false">Cancelar</button>
-             <button class="btn-success btn-wide" @click="confirmarPago">CONFIRMAR PAGO</button>
+             <button class="btn-success btn-wide" @click="confirmarPago">CONFIRMAR COBRO</button>
           </div>
         </div>
       </div>
@@ -203,17 +200,23 @@ onMounted(() => cargarDatos());
 .row-disabled { opacity: 0.6; background: #fcfcfc; }
 .check-icon { font-size: 1.2rem; }
 
-/* Modal Pago */
-.bg-primary { background: #5e72e4; }
-.text-white { color: white; }
-.close-btn.white { color: white; opacity: 0.8; }
-.close-btn.white:hover { opacity: 1; }
-.payment-summary { text-align: center; margin-bottom: 25px; padding: 20px; background: #f8f9fe; border-radius: 10px; }
-.amount-display { font-size: 2.5rem; color: #2dce89; margin: 5px 0; font-weight: 800; }
-.btn-wide { width: 100%; padding: 12px; font-size: 1rem; margin-top: 10px; }
+/* Modal */
+.modal-backdrop { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(3px); }
+.modal-card { background: white; width: 400px; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+.modal-header { padding: 20px; display: flex; justify-content: space-between; align-items: center; }
+.close-btn.white { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+.modal-body { padding: 30px; }
+.pay-amount { color: #2dce89; font-weight: 800; margin: 5px 0; font-size: 2.5rem; }
+.input-styled { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; }
+.modal-footer { padding: 20px; border-top: 1px solid #eee; text-align: right; background: #f9f9f9; }
+.btn-ghost { background: none; border: none; color: #889; font-weight: 600; margin-right: 15px; cursor: pointer; }
 .btn-success { background: #2dce89; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+.btn-wide { width: 100%; padding: 12px; font-size: 0.9rem; letter-spacing: 1px; }
 
-@media (max-width: 768px) {
-  .credit-header-grid { grid-template-columns: 1fr; }
-}
+.loading-state { height: 80vh; display: flex; justify-content: center; align-items: center; flex-direction: column; color: #889; gap: 15px; }
+.spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #5e72e4; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.slide-in-up { animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+@keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.fade-in { animation: fadeIn 0.4s; } @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 </style>

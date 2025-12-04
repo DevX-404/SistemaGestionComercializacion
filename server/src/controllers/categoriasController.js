@@ -21,30 +21,27 @@ const crear = async (req, res) => {
 const eliminar = async (req, res) => {
     try {
         const { id } = req.params;
-
-        // 1. Obtenemos la categoría para saber su nombre
         const cat = await Categoria.findById(id);
         if (!cat) return res.status(404).json({ message: 'Categoría no encontrada' });
 
-        // 2. VALIDACIÓN DE INTEGRIDAD: ¿Hay productos activos en esta categoría?
-        const productosVinculados = await Producto.countDocuments({ 
-            categoria: cat.nombre, 
-            estado: 'ACTIVO' 
-        });
-
+        // Validación de Integridad
+        const productosVinculados = await Producto.countDocuments({ categoria: cat.nombre, estado: 'ACTIVO' });
         if (productosVinculados > 0) {
-            return res.status(409).json({ 
-                message: `⛔ ACCESO DENEGADO: Hay ${productosVinculados} productos vinculados a esta categoría.` 
-            });
+            return res.status(409).json({ message: `⛔ DENEGADO: Hay ${productosVinculados} productos en esta categoría.` });
         }
 
+        // SOFT DELETE (Solo cambiamos estado a false)
         await Categoria.findByIdAndUpdate(id, { estado: false });
-        
-        res.json({ success: true, message: 'Categoría dada de baja correctamente' });
+        res.json({ success: true, message: 'Categoría inactivada' });
 
-    } catch (e) { 
-        res.status(500).json({ error: e.message }); 
-    }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
-module.exports = { listar, crear, eliminar };
+const reactivar = async (req, res) => {
+    try {
+        await Categoria.findByIdAndUpdate(req.params.id, { estado: true });
+        res.json({ success: true, message: 'Categoría reactivada' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+};
+
+module.exports = { listar, crear, eliminar, reactivar };

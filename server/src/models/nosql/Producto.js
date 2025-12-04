@@ -3,10 +3,11 @@ const mongoose = require('mongoose');
 const ProductoSchema = new mongoose.Schema({
     sku: { type: String, required: true, unique: true }, // El enlace con SQL
     nombre: { type: String, required: true },
-    descripcion_corta: String,
-    precio_base: Number,
-    imagenes: [String], // Array de URLs
-    specs: Object, // JSON flexible
+    descripcion: String, // Unificamos descripcion_corta y html en uno solo para simpleza
+    precio_base: { type: Number, required: true },
+    imagenes: [String],
+    categoria: { type: String, required: true, default: 'General' },
+    specs: { type: Map, of: String }, // JSON flexible
     estado: { type: String, default: 'ACTIVO', enum: ['ACTIVO', 'INACTIVO'] }
 }, {
     timestamps: true,
