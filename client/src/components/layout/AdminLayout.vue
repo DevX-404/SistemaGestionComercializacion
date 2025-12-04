@@ -38,9 +38,9 @@ const showSidebar = ref(false);
 /* --- SIDEBAR --- */
 .sidebar-area {
   width: 260px;
-  flex-shrink: 0; /* No encogerse */
+  flex-shrink: 0; 
   height: 100vh;
-  position: fixed; /* Fijo para que no scrollee con la página */
+  position: fixed; 
   top: 0;
   left: 0;
   z-index: 100;
@@ -50,8 +50,8 @@ const showSidebar = ref(false);
 /* --- CONTENIDO PRINCIPAL --- */
 .main-content {
   flex: 1;
-  margin-left: 260px; /* Empujamos el contenido para respetar el sidebar */
-  width: calc(100% - 260px); /* Ancho restante exacto */
+  margin-left: 260px; 
+  width: calc(100% - 260px);
   display: flex;
   flex-direction: column;
   transition: margin-left 0.3s ease, width 0.3s ease;
@@ -65,17 +65,17 @@ const showSidebar = ref(false);
 /* --- RESPONSIVE (Móvil y Tablets) --- */
 @media (max-width: 992px) {
   .sidebar-area {
-    transform: translateX(-100%); /* Ocultar sidebar por defecto */
+    transform: translateX(-100%);
     box-shadow: none;
   }
   
   .sidebar-area.open {
-    transform: translateX(0); /* Mostrar al activar */
-    box-shadow: 0 0 50px rgba(0,0,0,0.2); /* Sombra fuerte al abrir */
+    transform: translateX(0); 
+    box-shadow: 0 0 50px rgba(0,0,0,0.2); 
   }
 
   .main-content {
-    margin-left: 0 !important; /* Contenido ocupa todo */
+    margin-left: 0 !important; 
     width: 100% !important;
   }
 

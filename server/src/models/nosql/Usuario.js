@@ -6,10 +6,7 @@ const UsuarioSchema = new mongoose.Schema({
     nombre_completo: String,
     email: String,
     rol: { type: String, enum: ['ADMIN', 'VENDEDOR', 'ALMACENERO'], default: 'VENDEDOR' },
-    
-    // --- NUEVO: LISTA DE ACCESOS ---
-    accesos: { type: [String], default: [] }, // Ej: ['dashboard', 'ventas', 'clientes']
-    // Perfil flexible (Requisito: Perfiles)
+    accesos: { type: [String], default: [] },
     perfil: {
         avatar: String,
         tema: { type: String, default: 'dark' },

@@ -39,7 +39,7 @@ const chartData = ref({
 
 const chartOptions = {
   responsive: true,
-  maintainAspectRatio: false, // ¡Vital! No forzar la relación de aspecto original
+  maintainAspectRatio: false,
   plugins: {
     legend: { display: false },
     tooltip: {
@@ -52,7 +52,7 @@ const chartOptions = {
     y: {
       beginAtZero: true,
       ticks: {
-        callback: (value) => 'S/ ' + value // Eje Y con soles
+        callback: (value) => 'S/ ' + value 
       }
     }
   }
@@ -63,7 +63,6 @@ onMounted(async () => {
     const { data } = await api.get('/dashboard/ventas-semana');
     
     const dias = data.map(d => {
-        // Corrección de zona horaria para el display:
         const [year, month, day] = d.fecha.split('-').map(Number);
         const date = new Date(year, month - 1, day); 
         return date.toLocaleDateString('es-PE', { weekday: 'short', day: '2-digit' });
@@ -84,7 +83,6 @@ onMounted(async () => {
     loaded.value = true;
   } catch (e) { 
     console.error("Error cargando gráfico:", e);
-    // Permite que el componente se monte aunque la API falle
     loaded.value = true; 
   }
 });

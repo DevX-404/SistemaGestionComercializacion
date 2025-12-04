@@ -1,10 +1,10 @@
 const Usuario = require('../models/nosql/Usuario');
 const bcrypt = require('bcryptjs');
 
-// Listar todos (Solo mostramos lo necesario)
+// Listar todos 
 const listar = async (req, res) => {
     try {
-        const usuarios = await Usuario.find({}, '-password'); // El guion quita el password
+        const usuarios = await Usuario.find({}, '-password'); 
         res.json(usuarios);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -14,7 +14,7 @@ const listar = async (req, res) => {
 // Crear Usuario Nuevo
 const crear = async (req, res) => {
     try {
-        const { username, password, nombre_completo, rol } = req.body;
+        const { username, password, nombre_completo, rol, accesos } = req.body; 
 
         // Verificamos si ya existe
         const existe = await Usuario.findOne({ username });
@@ -30,13 +30,15 @@ const crear = async (req, res) => {
             password: hash, 
             nombre_completo, 
             rol, 
-            accesos: accesos || [], // Guardamos los permisos
+            accesos: accesos || [], 
             estado: 'ACTIVO' 
         });
         res.json({ message: 'Usuario creado exitosamente' });
-    } catch (e) { res.status(400).json({ error: e.message }); }
+    } catch (e) { 
+        console.log(e);
+        res.status(400).json({ error: e.message }); 
+    }
 };
-
 // EDITAR (Lógica Enterprise)
 const editar = async (req, res) => {
     try {

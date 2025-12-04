@@ -18,8 +18,7 @@ const crear = async (req, res) => {
         const resultado = await productoService.crearProducto(req.body, req.file);
         res.status(201).json(resultado);
     } catch (error) {
-        console.error("🔥 Error creando producto:", error); // ESTO SALDRÁ EN TU TERMINAL
-        // Enviamos 400 para que el frontend sepa que algo salió mal con los datos
+        console.error("🔥 Error creando producto:", error); 
         res.status(400).json({ 
             error: true, 
             message: error.message || 'Error al procesar la solicitud' 
@@ -30,9 +29,6 @@ const crear = async (req, res) => {
 // NUEVO: ACTUALIZAR
 const actualizar = async (req, res) => {
     try {
-        // req.params.sku trae el código del producto a editar
-        // req.body trae los datos nuevos
-        // req.file trae la imagen nueva (si hay)
         const resultado = await productoService.actualizarProducto(req.params.sku, req.body, req.file);
         res.json(resultado);
     } catch (error) {

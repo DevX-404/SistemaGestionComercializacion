@@ -47,9 +47,9 @@ const verCronograma = async (req, res) => {
     }
 };
 
-// NUEVO: Pagar una cuota específica
+// Pagar una cuota específica
 const pagarCuota = async (req, res) => {
-    const { idCuota, idCuenta, monto } = req.body; // ID del cronograma
+    const { idCuota, idCuenta, monto } = req.body; 
     const connection = await connectMySQL();
     
     try {
@@ -184,7 +184,7 @@ const consultarPorDocumento = async (req, res) => {
     }
 };
 
-// NUEVO: Pago Público (Desde la Web del Cliente)
+// Pago Público (Desde la Web del Cliente)
 const pagarCuotaPublica = async (req, res) => {
     const { idCuota, idCuenta, monto } = req.body;
     const connection = await connectMySQL();
@@ -220,8 +220,7 @@ const pagarCuotaPublica = async (req, res) => {
              );
         }
 
-        // 4. Registrar movimiento en tabla de pagos (Opcional para auditoría)
-        // await connection.execute("INSERT INTO pagos_credito ...") 
+        // 4. Registrar movimiento en tabla de pagos 
 
         await connection.commit();
         res.json({ success: true, message: 'Pago procesado exitosamente' });

@@ -15,9 +15,9 @@ import PortalPagosView from '../views/public/PagoCreditosView.vue';
 
 // --- Vistas Privadas (Admin) ---
 import VentasPosView from '../views/ventas/VentasPosView.vue';
-import CuentasPorCobrarView from '../views/ventas/CuentasPorCobrarView.vue'; // Vista Nueva
+import CuentasPorCobrarView from '../views/ventas/CuentasPorCobrarView.vue'; 
 import ClientesView from '../views/admin/ClientesView.vue';
-import CatalogoAdminView from '../views/admin/CatalogoAdminView.vue'; // Nombre nuevo
+import CatalogoAdminView from '../views/admin/CatalogoAdminView.vue';
 import ProveedoresView from '../views/admin/ProveedoresView.vue';
 import KardexView from '../views/admin/KardexView.vue';
 import DashboardView from '../views/admin/DashboardView.vue';
@@ -29,7 +29,7 @@ import CategoriasView from '../views/admin/CategoriasView.vue';
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    // RUTA RAÍZ (Login por defecto o Home)
+    // RUTA RAÍZ 
     {
     path: '/login',
     name: 'login',
@@ -49,7 +49,7 @@ const router = createRouter({
       ]
     },
 
-    // ZONA PRIVADA (ADMIN PANEL)
+    // ZONA PRIVADA 
     {
       path: '/admin',
       component: AdminLayout,

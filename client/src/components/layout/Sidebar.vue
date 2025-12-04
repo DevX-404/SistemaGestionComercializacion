@@ -2,7 +2,7 @@
   <aside class="sidebar-argon">
     <div class="logo-area">
       <div class="icon-logo">👾</div>
-      <div class="brand-text"><h2>Monster<span class="light">Sys</span></h2></div>
+      <div class="brand-text"><h2>Tech<span class="light">Sys</span></h2></div>
       <button class="close-mobile" @click="$emit('close')">×</button>
     </div>
 

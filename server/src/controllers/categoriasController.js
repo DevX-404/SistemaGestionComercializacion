@@ -30,7 +30,7 @@ const eliminar = async (req, res) => {
             return res.status(409).json({ message: `⛔ DENEGADO: Hay ${productosVinculados} productos en esta categoría.` });
         }
 
-        // SOFT DELETE (Solo cambiamos estado a false)
+        // SOFT DELETE 
         await Categoria.findByIdAndUpdate(id, { estado: false });
         res.json({ success: true, message: 'Categoría inactivada' });
 

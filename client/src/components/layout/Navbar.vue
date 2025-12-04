@@ -3,7 +3,7 @@
     <div class="container">
       <router-link to="/" class="logo">
         <div class="icon">👾</div>
-        <span>Monster<span class="highlight">Store</span></span>
+        <span>Tech<span class="highlight">Store</span></span>
       </router-link>
 
       <div class="menu-items">

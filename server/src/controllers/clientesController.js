@@ -57,7 +57,7 @@ const eliminar = async (req, res) => {
 };
 
 const reactivar = async (req, res) => {
-    const { connectMySQL } = require('../config/databases'); // Asegúrate de importar
+    const { connectMySQL } = require('../config/databases'); 
     const connection = await connectMySQL();
     try {
         await connection.execute("UPDATE clientes SET estado = 'ACTIVO' WHERE id = ?", [req.params.id]);

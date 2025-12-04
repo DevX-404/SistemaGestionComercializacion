@@ -2,12 +2,11 @@ const { poolPg } = require('../config/databases');
 
 const agregarStock = async (req, res) => {
     const { proveedor_id, numero_documento, items } = req.body; 
-    // items es un array: [{ sku, cantidad, costo_unitario }, ...]
 
     const client = await poolPg.connect();
 
     try {
-        // 1. INICIAR TRANSACCIÓN (Modo Serio)
+        // 1. INICIAR TRANSACCIÓN 
         await client.query('BEGIN');
 
         for (const item of items) {

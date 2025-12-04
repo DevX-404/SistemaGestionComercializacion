@@ -18,7 +18,7 @@
 
     <div class="page-header-actions">
       <div class="title-wrapper">
-        <h3 class="page-title">Cartera de Clientes</h3>
+        <h3 class="page-title">Gestión de Clientes</h3>
         <p class="page-subtitle">Gestión comercial y fiscal</p>
       </div>
       <div class="actions-wrapper">

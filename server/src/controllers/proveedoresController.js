@@ -2,7 +2,7 @@ const proveedorService = require('../services/ProveedorService');
 const { poolPg } = require('../config/databases');
 const Joi = require('joi');
 
-// Schema de validación (Igual que antes)
+// Schema de validación 
 const schemaProveedor = Joi.object({
     ruc: Joi.string().length(11).pattern(/^[0-9]+$/).required(),
     razon_social: Joi.string().required(),
@@ -29,7 +29,7 @@ const crear = async (req, res) => {
     } catch (e) { res.status(400).json({ message: e.message }); }
 };
 
-// SOFT DELETE (Ahora sí funcionará porque poolPg ya existe)
+// SOFT DELETE 
 const eliminar = async (req, res) => {
     try {
         await poolPg.query("UPDATE proveedores SET estado = 'INACTIVO' WHERE id = $1", [req.params.id]);
@@ -40,7 +40,7 @@ const eliminar = async (req, res) => {
     }
 };
 
-// --- NUEVO: CONSULTAR RUC ---
+// --- CONSULTAR RUC ---
 const consultarRuc = async (req, res) => {
     try {
         const { ruc } = req.body;

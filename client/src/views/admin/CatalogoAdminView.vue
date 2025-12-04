@@ -16,7 +16,7 @@
 
     <div class="page-header-actions">
       <div class="title-wrapper">
-        <h3 class="page-title">Maestro de Productos</h3>
+        <h3 class="page-title">Catalogo de Productos</h3>
         <p class="page-subtitle">Gestión de inventario y alertas de stock</p>
       </div>
       <div class="actions-wrapper">

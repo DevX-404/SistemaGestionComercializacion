@@ -36,7 +36,6 @@ export const useAuthStore = defineStore('auth', {
             localStorage.removeItem('user');
             router.push('/login');
         },
-        // Agrega esto dentro de "actions" en tu auth.js
         hasPermission(permisoRequerido) {
             if (!this.user) return false;
             if (this.user.rol === 'ADMIN') return true; // Admin ve todo

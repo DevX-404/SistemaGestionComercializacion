@@ -1,4 +1,5 @@
 const { connectMySQL } = require('../config/databases');
+const Producto = require('../models/nosql/Producto');
 
 const obtenerVentasPorFecha = async (req, res) => {
     try {
@@ -35,4 +36,42 @@ const obtenerVentasPorFecha = async (req, res) => {
     }
 };
 
-module.exports = { obtenerVentasPorFecha };
+// Resumen General (Dashboard de Reportes)
+const obtenerResumenGeneral = async (req, res) => {
+    try {
+        const connection = await connectMySQL();
+
+        // 1. Datos de MySQL (Transaccional y Clientes)
+        const [ventasData] = await connection.execute(`
+            SELECT 
+                COUNT(*) as total_ventas, 
+                COALESCE(SUM(total), 0) as ingreso_total 
+            FROM ventas_cabecera
+        `);
+
+        const [clientesData] = await connection.execute(`SELECT COUNT(*) as total FROM clientes`);
+
+        await connection.end();
+
+        // 2. Datos de MongoDB (Catálogos)
+        const totalProductos = await Producto.countDocuments();
+        const totalProveedores = 0; // Placeholder
+
+        // 3. Respuesta unificada
+        res.json({
+            kpis: {
+                ingresos: ventasData[0].ingreso_total,
+                ventas_cantidad: ventasData[0].total_ventas,
+                clientes: clientesData[0].total,
+                productos: totalProductos,
+                proveedores: totalProveedores
+            }
+        });
+
+    } catch (error) {
+        console.error("Error resumen:", error);
+        res.status(500).json({ message: 'Error obteniendo resumen' });
+    }
+};
+
+module.exports = { obtenerVentasPorFecha, obtenerResumenGeneral };

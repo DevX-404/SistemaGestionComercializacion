@@ -3,7 +3,7 @@
     <div class="container">
       
       <div class="mini-hero">
-        <h1>Tecnología <span class="highlight">Monstruosa</span></h1>
+        <h1>Tecnología <span class="highlight">Store</span></h1>
         <p>Encuentra lo último en hardware y accesorios.</p>
       </div>
 

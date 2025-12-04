@@ -1,4 +1,4 @@
-require('dotenv').config(); // Cargar variables de entorno
+require('dotenv').config(); 
 
 // 1. Configuración de MySQL (Ventas)
 const mysql = require('mysql2/promise');
@@ -32,7 +32,7 @@ const poolPg = new Pool({
 
 const connectPostgres = async () => {
     try {
-        await poolPg.query('SELECT NOW()'); // Consulta de prueba
+        await poolPg.query('SELECT NOW()'); 
         console.log('✅ PostgreSQL Conectado (Logística)');
         return poolPg;
     } catch (error) {

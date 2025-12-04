@@ -2,110 +2,176 @@
   <div class="page-container fade-in">
     
     <div class="page-header-actions">
-       <div class="title-wrapper">
-         <h3 class="page-title">Historial de Ventas</h3>
-         <p class="page-subtitle">Consultas y reimpresión de comprobantes</p>
+      <div class="title-wrapper">
+        <h3 class="page-title">Reportes Gerenciales</h3>
+        <p class="page-subtitle">Vista general del rendimiento y exportación de datos</p>
+      </div>
+      <button class="btn-excel shadow-hover" @click="exportarExcelGlobal">
+         <span class="icon">📊</span> 
+         <span>Descargar Excel Corporativo</span>
+      </button>
+    </div>
+
+    <div class="kpi-grid">
+       <div class="kpi-card blue">
+          <div class="kpi-icon-wrapper">
+             <span class="kpi-icon">💰</span>
+          </div>
+          <div class="kpi-content">
+             <span class="kpi-label">Ingresos Totales</span>
+             <h3 class="kpi-value">S/ {{ formatMoney(stats.ingresos) }}</h3>
+          </div>
        </div>
-       
-       <div class="filters-wrapper">
-         <div class="date-range">
-            <input type="date" v-model="filtros.inicio" class="input-date">
-            <span class="separator">➔</span>
-            <input type="date" v-model="filtros.fin" class="input-date">
-         </div>
-         <button class="btn-primary" @click="buscarVentas">🔍 Filtrar</button>
+
+       <div class="kpi-card purple">
+          <div class="kpi-icon-wrapper">
+             <span class="kpi-icon">🧾</span>
+          </div>
+          <div class="kpi-content">
+             <span class="kpi-label">Ventas Realizadas</span>
+             <h3 class="kpi-value">{{ stats.ventas_cantidad }}</h3>
+          </div>
+       </div>
+
+       <div class="kpi-card orange">
+          <div class="kpi-icon-wrapper">
+             <span class="kpi-icon">👥</span>
+          </div>
+          <div class="kpi-content">
+             <span class="kpi-label">Clientes Activos</span>
+             <h3 class="kpi-value">{{ stats.clientes }}</h3>
+          </div>
+       </div>
+
+       <div class="kpi-card green">
+          <div class="kpi-icon-wrapper">
+             <span class="kpi-icon">📦</span>
+          </div>
+          <div class="kpi-content">
+             <span class="kpi-label">Productos en Stock</span>
+             <h3 class="kpi-value">{{ stats.productos }}</h3>
+          </div>
        </div>
     </div>
 
-    <div class="card-box table-responsive">
-       <table class="monster-table">
-         <thead>
-           <tr>
-             <th>ID Venta</th>
-             <th>Fecha</th>
-             <th>Cliente</th>
-             <th>Método Pago</th>
-             <th class="text-right">Total</th>
-             <th class="text-center">Acciones</th>
-           </tr>
-         </thead>
-         <tbody>
-           <tr v-for="v in ventas" :key="v.id">
-             <td><span class="ticket-id">#{{ v.id.toString().padStart(6, '0') }}</span></td>
-             <td>
-                <div class="date-col">
-                   <span class="fw-bold">{{ formatDate(v.fecha_emision) }}</span>
-                   <small>{{ formatTime(v.fecha_emision) }}</small>
-                </div>
-             </td>
-             <td>
-                <div class="client-col">
-                   <strong>{{ v.cliente }}</strong>
-                   <small>{{ v.numero_documento }}</small>
-                </div>
-             </td>
-             <td>
-                <span class="badge-pill" :class="v.tipo_pago === 'CONTADO' ? 'bg-green' : 'bg-orange'">
-                   {{ v.tipo_pago }}
-                </span>
-             </td>
-             <td class="text-right fw-bold text-dark">S/ {{ parseFloat(v.total).toFixed(2) }}</td>
-             <td class="text-center">
-                <button class="btn-icon-action" @click="verDetalle(v.id)" title="Ver Detalle">👁️</button>
-                <button class="btn-icon-action print" @click="imprimirTicket(v)" title="Reimprimir Ticket">🖨️</button>
-             </td>
-           </tr>
-         </tbody>
-       </table>
-       
-       <div v-if="ventas.length === 0" class="empty-state">
-          <p>Seleccione un rango de fechas para consultar.</p>
+    <div class="content-section mt-5">
+       <div class="section-header">
+          <h4 class="section-title-sm">Historial de Transacciones</h4>
+          
+          <div class="filters-bar">
+            <div class="input-group-wrapper">
+               <label>Desde:</label>
+               <input type="date" v-model="filtros.inicio" class="input-styled">
+            </div>
+            <div class="input-group-wrapper">
+               <label>Hasta:</label>
+               <input type="date" v-model="filtros.fin" class="input-styled">
+            </div>
+            <button class="btn-filter" @click="buscarVentas">
+               🔍 Actualizar
+            </button>
+          </div>
+       </div>
+
+       <div class="card-box table-responsive">
+         <table class="monster-table">
+           <thead>
+             <tr>
+               <th>N° Ticket</th>
+               <th>Fecha de Emisión</th>
+               <th>Cliente</th>
+               <th>Método de Pago</th>
+               <th class="text-right">Total Venta</th>
+               <th class="text-center">Opciones</th>
+             </tr>
+           </thead>
+           <tbody>
+             <tr v-for="v in ventas" :key="v.id">
+               <td><span class="ticket-badge">#{{ v.id.toString().padStart(6, '0') }}</span></td>
+               <td>
+                  <div class="date-wrapper">
+                     <span class="main-date">{{ formatDate(v.fecha_emision) }}</span>
+                     <span class="sub-time">{{ formatTime(v.fecha_emision) }}</span>
+                  </div>
+               </td>
+               <td>
+                  <div class="client-info">
+                     <span class="client-name">{{ v.cliente }}</span>
+                     <span class="client-doc">{{ v.numero_documento }}</span>
+                  </div>
+               </td>
+               <td>
+                  <span class="status-pill" :class="v.tipo_pago === 'CONTADO' ? 'status-success' : 'status-warning'">
+                     {{ v.tipo_pago }}
+                  </span>
+               </td>
+               <td class="text-right font-weight-bold text-dark">
+                  S/ {{ parseFloat(v.total).toFixed(2) }}
+               </td>
+               <td class="text-center">
+                  <button class="btn-icon" @click="verDetalle(v.id)" title="Ver Detalles">
+                     👁️
+                  </button>
+               </td>
+             </tr>
+           </tbody>
+         </table>
+         
+         <div v-if="ventas.length === 0" class="empty-state">
+            <div class="empty-icon">📂</div>
+            <p>No se encontraron registros en este rango de fechas.</p>
+         </div>
        </div>
     </div>
 
     <transition name="modal-fade">
        <div v-if="modalDetalle" class="modal-backdrop" @click.self="modalDetalle = false">
           <div class="modal-card slide-in-up">
-             <div class="modal-header bg-header">
-                <div>
-                   <h4 class="text-white">Detalle de Venta #{{ ventaSeleccionada?.id }}</h4>
-                   <small class="text-white-50">{{ formatDate(ventaSeleccionada?.fecha_emision) }}</small>
+             <div class="modal-header-custom">
+                <div class="header-content">
+                   <h4>Detalle de Venta</h4>
+                   <span class="ticket-number">#{{ ventaSeleccionada?.id }}</span>
                 </div>
-                <button class="close-btn white" @click="modalDetalle = false">×</button>
+                <button class="close-btn" @click="modalDetalle = false">×</button>
              </div>
-             <div class="modal-body">
-                <div class="info-grid">
-                   <div><label>Cliente:</label> <strong>{{ ventaSeleccionada?.razon_social }}</strong></div>
-                   <div><label>Documento:</label> {{ ventaSeleccionada?.numero_documento }}</div>
-                   <div><label>Dirección:</label> {{ ventaSeleccionada?.direccion || '-' }}</div>
+             <div class="modal-body-custom">
+                <div class="detail-summary">
+                    <div class="summary-item">
+                       <label>Cliente</label>
+                       <span>{{ ventaSeleccionada?.cliente || ventaSeleccionada?.razon_social }}</span>
+                    </div>
+                    <div class="summary-item text-right">
+                       <label>Fecha</label>
+                       <span>{{ formatDate(ventaSeleccionada?.fecha_emision) }}</span>
+                    </div>
                 </div>
                 
-                <hr class="divider">
-
-                <table class="simple-table">
-                   <thead><tr><th>Cant.</th><th>Descripción</th><th class="text-right">Total</th></tr></thead>
+                <table class="detail-table">
+                   <thead>
+                      <tr>
+                         <th>Producto</th>
+                         <th class="text-center">Cant.</th>
+                         <th class="text-right">Subtotal</th>
+                      </tr>
+                   </thead>
                    <tbody>
                       <tr v-for="(item, i) in ventaSeleccionada?.items" :key="i">
-                         <td class="text-center fw-bold">{{ item.cantidad }}</td>
-                         <td>{{ getNombreProducto(item.sku) }} <small class="text-muted">({{ item.sku }})</small></td>
+                         <td>{{ getNombreProducto(item.sku) }}</td>
+                         <td class="text-center">{{ item.cantidad }}</td>
                          <td class="text-right">S/ {{ parseFloat(item.subtotal).toFixed(2) }}</td>
                       </tr>
                    </tbody>
                    <tfoot>
-                      <tr class="total-row">
-                         <td colspan="2" class="text-right">TOTAL PAGADO</td>
-                         <td class="text-right">S/ {{ parseFloat(ventaSeleccionada?.total).toFixed(2) }}</td>
+                      <tr>
+                         <td colspan="2" class="text-right label-total">TOTAL</td>
+                         <td class="text-right value-total">S/ {{ parseFloat(ventaSeleccionada?.total).toFixed(2) }}</td>
                       </tr>
                    </tfoot>
                 </table>
              </div>
-             <div class="modal-footer">
-                <button class="btn-primary full-width" @click="imprimirTicket(ventaSeleccionada)">🖨️ Reimprimir Comprobante</button>
-             </div>
           </div>
        </div>
     </transition>
-
   </div>
 </template>
 
@@ -113,23 +179,36 @@
 import { ref, onMounted } from 'vue';
 import api from '../../api/axios';
 import { useInventarioStore } from '../../stores/inventario';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx-js-style'; // USAMOS LA LIBRERÍA CON ESTILOS
 
 const inventario = useInventarioStore();
 const ventas = ref([]);
-const filtros = ref({ inicio: new Date().toISOString().split('T')[0], fin: new Date().toISOString().split('T')[0] });
+const stats = ref({ ingresos: 0, ventas_cantidad: 0, clientes: 0, productos: 0 });
+const filtros = ref({ 
+    inicio: new Date().toISOString().split('T')[0], 
+    fin: new Date().toISOString().split('T')[0] 
+});
 const modalDetalle = ref(false);
 const ventaSeleccionada = ref(null);
 
-// Cargar productos para cruzar nombres (como en Kardex)
-onMounted(() => inventario.fetchProductos());
+onMounted(async () => {
+    await inventario.fetchProductos();
+    cargarResumenGeneral();
+    buscarVentas();
+});
+
+const cargarResumenGeneral = async () => {
+    try {
+        const { data } = await api.get('/reportes/general');
+        stats.value = data.kpis;
+    } catch (e) { console.error("Error KPIs", e); }
+};
 
 const buscarVentas = async () => {
    try {
       const { data } = await api.get(`/reportes/ventas?inicio=${filtros.value.inicio}&fin=${filtros.value.fin}`);
       ventas.value = data;
-   } catch(e) { alert('Error cargando ventas'); }
+   } catch(e) { alert('Error cargando historial'); }
 };
 
 const verDetalle = async (id) => {
@@ -137,96 +216,289 @@ const verDetalle = async (id) => {
       const { data } = await api.get(`/ventas/${id}`);
       ventaSeleccionada.value = data;
       modalDetalle.value = true;
-   } catch(e) { alert('Error al obtener detalle'); }
+   } catch(e) { alert('Error al detalle'); }
 };
 
-const getNombreProducto = (sku) => inventario.productos.find(p => p.sku === sku)?.nombre || 'Producto';
+// --- LÓGICA EXCEL MEJORADA ---
+const exportarExcelGlobal = () => {
+    const wb = XLSX.utils.book_new();
+    
+    // Estilos base para encabezados
+    const headerStyle = {
+        font: { bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "4F81BD" } }, // Azul corporativo
+        alignment: { horizontal: "center" },
+        border: { bottom: { style: "thin", color: { rgb: "000000" } } }
+    };
 
-// --- REIMPRESIÓN PDF ---
-const imprimirTicket = (venta) => {
-   if(!venta) return;
-   const doc = new jsPDF({
-       orientation: 'portrait', unit: 'mm', format: [80, 200] // Formato Ticket Térmico
-   });
-   
-   doc.setFontSize(12); doc.text("MONSTER STORE", 40, 10, { align: "center" });
-   doc.setFontSize(9); doc.text("RUC: 20100000001", 40, 15, { align: "center" });
-   doc.text("--------------------------------", 40, 20, { align: "center" });
-   
-   doc.setFontSize(8);
-   doc.text(`Ticket: #${venta.id}`, 5, 25);
-   doc.text(`Fecha: ${formatDate(venta.fecha_emision)} ${formatTime(venta.fecha_emision)}`, 5, 30);
-   doc.text(`Cliente: ${venta.razon_social || venta.cliente}`, 5, 35);
-   
-   // Si es desde la tabla principal, items no existe, hay que pedirlos.
-   // Por simplicidad, aquí asumimos que se imprime desde el detalle o que el endpoint reporte trae items (lo cual sería pesado).
-   // MEJOR: Solo permitir imprimir desde el modal de detalle para asegurar consistencia.
-   
-   if(venta.items) {
-      let y = 45;
-      venta.items.forEach(item => {
-         doc.text(`${item.cantidad} x ${getNombreProducto(item.sku).substring(0,15)}..`, 5, y);
-         doc.text(parseFloat(item.subtotal).toFixed(2), 75, y, { align: "right" });
-         y += 5;
-      });
-      doc.text("--------------------------------", 40, y+2, { align: "center" });
-      doc.setFontSize(10);
-      doc.text(`TOTAL: S/ ${parseFloat(venta.total).toFixed(2)}`, 75, y+8, { align: "right" });
-   } else {
-      // Si intentan imprimir desde la lista, abrimos detalle primero
-      verDetalle(venta.id).then(() => imprimirTicket(ventaSeleccionada.value));
-      return; 
-   }
+    // 1. HOJA RESUMEN
+    const resumenData = [
+        [{ v: "REPORTE GENERAL DE GESTIÓN", s: { font: { bold: true, sz: 14 } } }],
+        ["Generado el:", new Date().toLocaleString()],
+        [], // Espacio
+        ["KPI", "VALOR ACTUAL"], // Encabezados manuales
+        ["Ingresos Totales", stats.value.ingresos],
+        ["Ventas Totales", stats.value.ventas_cantidad],
+        ["Total Clientes", stats.value.clientes],
+        ["Total Productos", stats.value.productos],
+    ];
 
-   doc.save(`Ticket_${venta.id}.pdf`);
+    // Aplicar estilo a los headers de resumen (Fila 4, indices 0 y 1)
+    // Nota: xlsx-js-style usa objetos para celdas con estilo, aquí lo simplificamos creando la hoja primero
+    const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
+    // Ajustar ancho columnas resumen
+    wsResumen['!cols'] = [{ wch: 25 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
+
+    // 2. HOJA VENTAS (Datatable)
+    const ventasBody = ventas.value.map(v => ({
+        "ID Ticket": v.id,
+        "Fecha Emisión": formatDate(v.fecha_emision),
+        "Hora": formatTime(v.fecha_emision),
+        "Cliente": v.cliente,
+        "Documento": v.numero_documento,
+        "Método Pago": v.tipo_pago,
+        "Total (S/)": parseFloat(v.total)
+    }));
+
+    const wsVentas = XLSX.utils.json_to_sheet(ventasBody);
+    
+    // Auto-ancho para Ventas (Calculamos el ancho basado en el contenido o header)
+    const wscolsVentas = [
+        { wch: 10 }, // ID
+        { wch: 15 }, // Fecha
+        { wch: 10 }, // Hora
+        { wch: 35 }, // Cliente (Más ancho)
+        { wch: 15 }, // Doc
+        { wch: 15 }, // Pago
+        { wch: 15 }  // Total
+    ];
+    wsVentas['!cols'] = wscolsVentas;
+
+    // Aplicar estilo simple a la primera fila (Headers) si se desea iterar sobre las celdas 'A1', 'B1', etc.
+    // Con xlsx-js-style se puede hacer post-proceso, pero solo con los anchos ya se ve mucho mejor.
+    XLSX.utils.book_append_sheet(wb, wsVentas, "Detalle Ventas");
+
+    // 3. HOJA PRODUCTOS
+    if(inventario.productos.length > 0) {
+        const productosBody = inventario.productos.map(p => ({
+             "SKU": p.sku,
+             "Nombre Producto": p.nombre,
+             "Categoría": p.categoria?.nombre || '-',
+             "Stock Actual": p.stock,
+             "Precio Unit.": p.precio
+        }));
+        const wsProductos = XLSX.utils.json_to_sheet(productosBody);
+        wsProductos['!cols'] = [{ wch: 15 }, { wch: 40 }, { wch: 20 }, { wch: 10 }, { wch: 10 }];
+        XLSX.utils.book_append_sheet(wb, wsProductos, "Inventario");
+    }
+
+    XLSX.writeFile(wb, `Reporte_Gerencial_${filtros.value.inicio}.xlsx`);
 };
 
+// Helpers
+const formatMoney = (amount) => parseFloat(amount || 0).toFixed(2);
 const formatDate = (f) => new Date(f).toLocaleDateString('es-PE');
 const formatTime = (f) => new Date(f).toLocaleTimeString('es-PE', {hour:'2-digit', minute:'2-digit'});
+const getNombreProducto = (sku) => inventario.productos.find(p => p.sku === sku)?.nombre || 'Producto desconocido';
 </script>
 
 <style scoped>
-.page-container { padding: 20px; font-family: 'Segoe UI', sans-serif; }
-.page-header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-title { margin: 0; font-weight: 800; color: #32325d; }
-.page-subtitle { margin: 0; color: #889; font-size: 0.9rem; }
+/* --- LAYOUT GENERAL --- */
+.page-container { 
+    padding: 30px; 
+    font-family: 'Inter', 'Segoe UI', sans-serif; 
+    background-color: #f8f9fe; 
+    min-height: 100vh; 
+}
 
-.filters-wrapper { display: flex; gap: 10px; align-items: center; }
-.date-range { background: white; padding: 8px 15px; border-radius: 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 10px; }
-.input-date { border: none; outline: none; color: #525f7f; font-weight: bold; background: transparent; font-family: inherit; }
-.separator { color: #889; font-size: 0.8rem; }
-.btn-primary { background: #5e72e4; color: white; border: none; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+/* Header con más aire */
+.page-header-actions { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-end; 
+    margin-bottom: 40px; /* Más separación abajo */
+}
+.page-title { font-size: 1.8rem; font-weight: 700; color: #111827; margin: 0; }
+.page-subtitle { color: #6b7280; margin-top: 5px; font-size: 0.95rem; }
 
-.card-box { background: white; border-radius: 15px; box-shadow: 0 0 2rem rgba(136,152,170,.15); padding: 20px; }
+/* Botón Excel Profesional */
+.btn-excel { 
+    background: #10b981; /* Un verde más moderno */
+    color: white; 
+    border: none; 
+    padding: 12px 24px; 
+    border-radius: 10px; 
+    font-weight: 600; 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    cursor: pointer; 
+    transition: all 0.2s ease;
+}
+.btn-excel:hover { background: #059669; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+.icon { font-size: 1.2rem; }
+
+/* --- KPI CARDS MEJORADAS --- */
+.kpi-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+    gap: 30px; /* MÁS ESPACIO ENTRE TARJETAS */
+    margin-bottom: 40px; 
+}
+
+.kpi-card { 
+    background: white; 
+    border-radius: 16px; 
+    padding: 25px; 
+    display: flex; 
+    align-items: center; 
+    gap: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0,0,0,0.03);
+    transition: transform 0.2s;
+}
+.kpi-card:hover { transform: translateY(-3px); }
+
+.kpi-icon-wrapper {
+    width: 60px; height: 60px; 
+    border-radius: 12px; 
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem;
+}
+/* Colores sutiles para los iconos */
+.blue .kpi-icon-wrapper { background: #e0f2fe; color: #0284c7; }
+.purple .kpi-icon-wrapper { background: #f3e8ff; color: #9333ea; }
+.orange .kpi-icon-wrapper { background: #ffedd5; color: #ea580c; }
+.green .kpi-icon-wrapper { background: #dcfce7; color: #16a34a; }
+
+.kpi-content { display: flex; flex-direction: column; }
+.kpi-label { font-size: 0.85rem; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.kpi-value { font-size: 1.8rem; font-weight: 800; color: #1f2937; margin: 5px 0 0 0; }
+
+/* --- SECCIÓN DE CONTENIDO Y FILTROS --- */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+.section-title-sm { font-size: 1.2rem; font-weight: 700; color: #374151; margin: 0; }
+
+.filters-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 15px;
+    background: white;
+    padding: 10px 20px;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.input-group-wrapper { display: flex; flex-direction: column; gap: 5px; }
+.input-group-wrapper label { font-size: 0.75rem; font-weight: 600; color: #6b7280; }
+.input-styled { 
+    border: 1px solid #e5e7eb; 
+    border-radius: 6px; 
+    padding: 6px 10px; 
+    color: #374151; 
+    outline: none; 
+    font-family: inherit;
+}
+.btn-filter {
+    background: #3b82f6; color: white; border: none; 
+    padding: 8px 16px; border-radius: 6px; 
+    font-weight: 600; cursor: pointer;
+    height: 34px;
+}
+
+/* --- TABLA ESTILIZADA --- */
+.card-box { 
+    background: white; 
+    border-radius: 16px; 
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); 
+    overflow: hidden; 
+    border: 1px solid #f3f4f6;
+}
+
 .monster-table { width: 100%; border-collapse: collapse; }
-.monster-table th { text-align: left; padding: 12px; border-bottom: 1px solid #eee; color: #889; font-size: 0.7rem; text-transform: uppercase; background: #f6f9fc; }
-.monster-table td { padding: 12px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+.monster-table th { 
+    text-align: left; 
+    padding: 18px 25px; /* Más padding */
+    background: #f9fafb; 
+    color: #6b7280; 
+    font-size: 0.75rem; 
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.monster-table td { 
+    padding: 16px 25px; 
+    border-bottom: 1px solid #f3f4f6; 
+    color: #4b5563; 
+    font-size: 0.9rem;
+}
+.monster-table tr:last-child td { border-bottom: none; }
 
-.ticket-id { font-family: monospace; background: #e8f6fc; color: #2980b9; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
-.date-col, .client-col { display: flex; flex-direction: column; line-height: 1.2; font-size: 0.85rem; }
-.badge-pill { padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 800; }
-.bg-green { background: #eafaf1; color: #2ecc71; } .bg-orange { background: #fff3cd; color: #f39c12; }
-.btn-icon-action { width: 32px; height: 32px; border-radius: 50%; border: none; background: #f6f9fc; cursor: pointer; margin-left: 5px; transition: 0.2s; }
-.btn-icon-action:hover { background: #5e72e4; color: white; }
+.ticket-badge { 
+    background: #eff6ff; color: #2563eb; 
+    padding: 4px 8px; border-radius: 6px; 
+    font-family: 'Courier New', monospace; font-weight: 700; font-size: 0.85rem;
+}
 
-/* Modal */
-.modal-backdrop { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); }
-.modal-card { background: white; width: 450px; border-radius: 10px; overflow: hidden; box-shadow: 0 15px 35px rgba(50,50,93,.2); }
-.modal-header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
-.bg-header { background: linear-gradient(87deg, #5e72e4 0, #825ee4 100%); }
-.close-btn.white { color: white; background: none; border: none; font-size: 1.5rem; cursor: pointer; }
-.modal-body { padding: 20px; }
-.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9rem; margin-bottom: 15px; }
-.info-grid label { color: #889; font-size: 0.75rem; display: block; }
-.divider { border: 0; border-top: 1px dashed #eee; margin: 15px 0; }
-.simple-table { width: 100%; font-size: 0.9rem; }
-.simple-table th { text-align: left; color: #889; font-size: 0.75rem; padding-bottom: 5px; }
-.total-row td { border-top: 2px solid #eee; padding-top: 10px; font-weight: 800; font-size: 1.1rem; }
-.full-width { width: 100%; }
+.client-info { display: flex; flex-direction: column; }
+.client-name { font-weight: 600; color: #111827; }
+.client-doc { font-size: 0.8rem; color: #9ca3af; }
 
-.empty-state { text-align: center; padding: 40px; color: #889; }
-.fade-in { animation: fadeIn 0.4s ease-out; }
-.slide-in-up { animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.status-pill { 
+    padding: 6px 12px; border-radius: 20px; 
+    font-size: 0.75rem; font-weight: 700; 
+}
+.status-success { background: #d1fae5; color: #065f46; }
+.status-warning { background: #fef3c7; color: #92400e; }
+
+.btn-icon {
+    background: white; border: 1px solid #e5e7eb; 
+    width: 34px; height: 34px; border-radius: 8px; 
+    cursor: pointer; transition: all 0.2s; color: #6b7280;
+}
+.btn-icon:hover { border-color: #3b82f6; color: #3b82f6; transform: scale(1.05); }
+
+/* --- MODAL LIMPIO --- */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; justify-content: center; align-items: center; backdrop-filter: blur(4px); z-index: 999; }
+.modal-card { background: white; width: 500px; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+
+.modal-header-custom { 
+    padding: 20px 25px; 
+    background: #f8fafc; 
+    display: flex; justify-content: space-between; align-items: center; 
+    border-bottom: 1px solid #e2e8f0;
+}
+.header-content h4 { margin: 0; font-size: 1.1rem; color: #1e293b; }
+.ticket-number { font-size: 0.9rem; color: #64748b; }
+.close-btn { background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; }
+
+.modal-body-custom { padding: 25px; }
+.detail-summary { display: flex; justify-content: space-between; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px dashed #e2e8f0; }
+.summary-item { display: flex; flex-direction: column; font-size: 0.9rem; }
+.summary-item label { font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; }
+.summary-item span { font-weight: 600; color: #334155; }
+
+.detail-table { width: 100%; font-size: 0.9rem; }
+.detail-table th { text-align: left; color: #94a3b8; padding-bottom: 10px; font-size: 0.8rem; }
+.detail-table td { padding: 8px 0; border-bottom: 1px solid #f1f5f9; color: #475569; }
+.label-total { padding-top: 15px; font-weight: 700; color: #64748b; }
+.value-total { padding-top: 15px; font-weight: 800; color: #0f172a; font-size: 1.1rem; }
+
+/* Utils */
+.mt-5 { margin-top: 3rem; }
+.slide-in-up { animation: slideUp 0.3s ease-out; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.4s; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+.empty-state { text-align: center; padding: 50px; color: #9ca3af; }
+.empty-icon { font-size: 3rem; margin-bottom: 10px; opacity: 0.5; }
 </style>

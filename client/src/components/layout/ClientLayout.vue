@@ -13,7 +13,7 @@
     <footer class="footer-pro">
       <div class="footer-content">
         <div class="brand">
-          <h3>Monster<span class="light">Store</span></h3>
+          <h3>Tech<span class="light">Store</span></h3>
           <p>Tecnología que potencia tu mundo.</p>
         </div>
         <div class="links">
@@ -21,7 +21,7 @@
           <a href="#">Privacidad</a>
           <a href="#">Soporte</a>
         </div>
-        <div class="copy">© 2025 MonsterSys Inc.</div>
+        <div class="copy">© 2025 TechSys Inc.</div>
       </div>
     </footer>
   </div>

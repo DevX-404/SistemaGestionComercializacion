@@ -51,20 +51,19 @@ export const useCartStore = defineStore('cart', {
 
             const datosVenta = {
                 cliente_id: this.cliente_id,
-                usuario_id: "ADMIN-001", // Harcodeado por ahora (luego vendrá del login)
+                usuario_id: "ADMIN-001", 
                 items: this.items.map(i => ({
                     sku: i.sku,
                     cantidad: i.cantidad,
-                    precio: i.precio_base, // Enviamos precio base para que back calcule
+                    precio: i.precio_base,
                     subtotal: i.precio_base * i.cantidad
                 })),
                 tipo_pago: this.tipoVenta,
                 total: this.totalVenta,
-                cuotas: parseInt(this.cuotas) // Enviamos las cuotas al backend
+                cuotas: parseInt(this.cuotas) 
             };
 
             try {
-                // Llamada al servidor (Asegúrate que tu backend corre en el 3000)
                 const response = await axios.post('http://localhost:3000/api/ventas', datosVenta);
 
                 if (response.data.success) {

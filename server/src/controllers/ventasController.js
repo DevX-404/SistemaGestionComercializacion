@@ -6,7 +6,7 @@ const procesarVenta = async (req, res) => {
         // 1. Recibir datos
         const datosVenta = req.body;
 
-        // 2. Llamar al servicio (El experto)
+        // 2. Llamar al servicio 
         const resultado = await ventasService.crearNuevaVenta(datosVenta);
 
         // 3. Responder al cliente
@@ -21,14 +21,13 @@ const procesarVenta = async (req, res) => {
     }
 };
 
-// NUEVO: Obtener detalle completo de una venta (CORREGIDO)
+// Obtener detalle completo de una venta 
 const obtenerDetalleVenta = async (req, res) => {
     try {
         const { id } = req.params;
         const connection = await connectMySQL();
         
-        // 1. Cabecera (SIN JOIN CON USUARIOS)
-        // MySQL no conoce a Mongo, así que solo pedimos el usuario_id string
+        // 1. Cabecera 
         const [cabecera] = await connection.execute(`
             SELECT 
                 v.id, v.fecha_emision, v.tipo_pago, v.total, v.usuario_id,
@@ -50,14 +49,10 @@ const obtenerDetalleVenta = async (req, res) => {
         `, [id]);
 
         await connection.end();
-        
-        // Opcional: Aquí podríamos buscar el nombre del usuario en Mongo si quisieras,
-        // pero para que funcione YA, mandamos el usuario_id tal cual.
-        
         res.json({ ...cabecera[0], items: detalles });
 
     } catch (error) {
-        console.error("Error en Detalle Venta:", error); // Para ver en consola
+        console.error("Error en Detalle Venta:", error); 
         res.status(500).json({ error: 'Error al obtener detalle de venta en BD' });
     }
 };

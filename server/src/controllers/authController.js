@@ -22,21 +22,20 @@ const login = async (req, res) => {
 
         // 4. Generar Token
         const token = jwt.sign(
-            { id: user._id, rol: user.rol }, // Payload
+            { id: user._id, rol: user.rol }, 
             JWT_SECRET,
             { expiresIn: '8h' }
         );
 
-        // 5. RESPONDER AL FRONTEND (¡AQUÍ ESTABA EL DETALLE!)
-        // Debemos enviar 'accesos' explícitamente
+        // 5. RESPONDER AL FRONTEND 
         res.json({
             token,
             user: {
                 _id: user._id,
                 username: user.username,
-                nombre: user.nombre_completo, // Asegúrate que en tu modelo sea 'nombre_completo'
+                nombre: user.nombre_completo,
                 rol: user.rol,
-                accesos: user.accesos || [], // <--- ESTO ES LO QUE FALTABA
+                accesos: user.accesos || [], 
                 perfil: user.perfil
             }
         });
@@ -46,14 +45,14 @@ const login = async (req, res) => {
     }
 };
 
-// Función auxiliar para crear el primer admin (ejecútala una vez o crea ruta)
+// Función auxiliar para crear el primer admin
 const registrarAdminInicial = async (req, res) => {
     try {
         const existe = await Usuario.findOne({ username: 'admin' });
         if (existe) return res.json({ message: 'Admin ya existe' });
 
         const salt = await bcrypt.genSalt(10);
-        const hash = await bcrypt.hash('admin123', salt); // Contraseña inicial
+        const hash = await bcrypt.hash('admin123', salt); 
 
         const nuevo = new Usuario({
             username: 'admin',

@@ -5,7 +5,7 @@
       <div class="brand-overlay"></div>
       <div class="brand-content">
         <div class="logo-circle">👾</div>
-        <h1>Monster<span class="light">Sys</span></h1>
+        <h1>Tech<span class="light">Sys</span></h1>
         <p class="slogan">Gestión empresarial inteligente para negocios que crecen sin límites.</p>
       </div>
       <div class="circle c1"></div>
@@ -27,7 +27,7 @@
               <input 
                 type="text" 
                 v-model="username" 
-                placeholder="ej. admin" 
+                placeholder="username" 
                 class="form-control"
                 required
               >
@@ -66,7 +66,7 @@
         </form>
 
         <div class="footer-box">
-          <p>© 2025 MonsterSys Inc. Todos los derechos reservados.</p>
+          <p>© 2025 TechSys Inc. Todos los derechos reservados.</p>
         </div>
       </div>
     </div>
